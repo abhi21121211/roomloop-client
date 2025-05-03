@@ -1,17 +1,19 @@
 import React, { useState } from "react";
 import {
   Box,
-  Button,
   Container,
-  TextField,
   Typography,
-  Paper,
   Grid,
   Link as MuiLink,
+  Stack,
+  useTheme as useMuiTheme,
 } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import ErrorMessage from "../components/common/ErrorMessage";
+import StyledCard from "../components/common/StyledCard";
+import StyledTextField from "../components/common/StyledTextField";
+import StyledButton from "../components/common/StyledButton";
 
 const Login: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -24,6 +26,7 @@ const Login: React.FC = () => {
   });
   const { login, error, clearError } = useAuth();
   const navigate = useNavigate();
+  const theme = useMuiTheme();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -64,70 +67,108 @@ const Login: React.FC = () => {
   };
 
   return (
-    <Container component="main" maxWidth="xs">
-      <Paper
-        elevation={3}
+    <Container component="main" maxWidth="sm">
+      <Box
         sx={{
           mt: 8,
-          p: 4,
+          mb: 8,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
         }}
       >
-        <Typography component="h1" variant="h5">
-          Sign in to RoomLoop
-        </Typography>
+        <StyledCard sx={{ width: "100%" }}>
+          <Stack spacing={3} alignItems="center" sx={{ width: "100%" }}>
+            <Typography
+              component="h1"
+              variant="h4"
+              fontWeight="bold"
+              color="primary"
+              sx={{
+                backgroundImage:
+                  theme.palette.mode === "dark"
+                    ? "linear-gradient(45deg, #7986cb 30%, #5c6bc0 90%)"
+                    : "linear-gradient(45deg, #3f51b5 30%, #303f9f 90%)",
+                backgroundClip: "text",
+                WebkitBackgroundClip: "text",
+                color: "transparent",
+                mb: 1,
+              }}
+            >
+              Sign in to RoomLoop
+            </Typography>
 
-        <ErrorMessage message={error} />
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Enter your credentials to access your account
+            </Typography>
 
-        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            id="login"
-            label="Email or Username"
-            name="login"
-            autoComplete="email"
-            autoFocus
-            value={formData.login}
-            onChange={handleChange}
-            error={!!formErrors.login}
-            helperText={formErrors.login}
-          />
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            name="password"
-            label="Password"
-            type="password"
-            id="password"
-            autoComplete="current-password"
-            value={formData.password}
-            onChange={handleChange}
-            error={!!formErrors.password}
-            helperText={formErrors.password}
-          />
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            color="primary"
-            sx={{ mt: 3, mb: 2 }}
-          >
-            Sign In
-          </Button>
-          <Grid container justifyContent="flex-end">
-            <Grid>
-              <MuiLink component={Link} to="/register" variant="body2">
-                {"Don't have an account? Sign Up"}
-              </MuiLink>
-            </Grid>
-          </Grid>
-        </Box>
-      </Paper>
+            <ErrorMessage message={error} />
+
+            <Box
+              component="form"
+              onSubmit={handleSubmit}
+              sx={{ width: "100%" }}
+            >
+              <StyledTextField
+                margin="normal"
+                required
+                fullWidth
+                id="login"
+                label="Email or Username"
+                name="login"
+                autoComplete="email"
+                autoFocus
+                value={formData.login}
+                onChange={handleChange}
+                error={!!formErrors.login}
+                helperText={formErrors.login}
+              />
+              <StyledTextField
+                margin="normal"
+                required
+                fullWidth
+                name="password"
+                label="Password"
+                type="password"
+                id="password"
+                autoComplete="current-password"
+                value={formData.password}
+                onChange={handleChange}
+                error={!!formErrors.password}
+                helperText={formErrors.password}
+              />
+              <StyledButton
+                type="submit"
+                fullWidth
+                variant="contained"
+                color="primary"
+                sx={{ mt: 3, mb: 2 }}
+              >
+                Sign In
+              </StyledButton>
+              <Grid container justifyContent="center">
+                <Grid item>
+                  <MuiLink
+                    component={Link}
+                    to="/register"
+                    variant="body2"
+                    sx={{
+                      textDecoration: "none",
+                      fontWeight: "medium",
+                      transition: "color 0.2s",
+                      "&:hover": {
+                        color: "primary.main",
+                      },
+                    }}
+                  >
+                    {"Don't have an account? Sign Up"}
+                  </MuiLink>
+                </Grid>
+              </Grid>
+            </Box>
+          </Stack>
+        </StyledCard>
+      </Box>
     </Container>
   );
 };

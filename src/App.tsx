@@ -20,6 +20,8 @@ import RoomView from "./pages/RoomView";
 import { AuthProvider } from "./contexts/AuthContext";
 import { RoomProvider } from "./contexts/RoomContext";
 import { ChatProvider } from "./contexts/ChatContext";
+import { ThemeProvider } from "./contexts/ThemeContext";
+import { NotificationProvider } from "./contexts/NotificationContext";
 
 // Components
 import MainLayout from "./components/layout/MainLayout";
@@ -28,73 +30,88 @@ import ProtectedRoute from "./components/common/ProtectedRoute";
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <RoomProvider>
-          <ChatProvider>
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
+      <ThemeProvider>
+        <AuthProvider>
+          <RoomProvider>
+            <NotificationProvider>
+              <ChatProvider>
+                <Routes>
+                  {/* Public Routes */}
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
 
-              {/* Protected Routes */}
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <MainLayout>
-                      <Dashboard />
-                    </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/explore"
-                element={
-                  <ProtectedRoute>
-                    <MainLayout>
-                      <Explore />
-                    </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/create-room"
-                element={
-                  <ProtectedRoute>
-                    <MainLayout>
-                      <CreateRoom />
-                    </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/profile"
-                element={
-                  <ProtectedRoute>
-                    <MainLayout>
-                      <Profile />
-                    </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/rooms/:roomId"
-                element={
-                  <ProtectedRoute>
-                    <MainLayout>
-                      <RoomView />
-                    </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
+                  {/* Protected Routes */}
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <ProtectedRoute>
+                        <MainLayout>
+                          <Dashboard />
+                        </MainLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/explore"
+                    element={
+                      <ProtectedRoute>
+                        <MainLayout>
+                          <Explore />
+                        </MainLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/create-room"
+                    element={
+                      <ProtectedRoute>
+                        <MainLayout>
+                          <CreateRoom />
+                        </MainLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/profile"
+                    element={
+                      <ProtectedRoute>
+                        <MainLayout>
+                          <Profile />
+                        </MainLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/room/:roomId"
+                    element={
+                      <ProtectedRoute>
+                        <MainLayout>
+                          <RoomView />
+                        </MainLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  {/* Add a route alias for backward compatibility */}
+                  <Route
+                    path="/rooms/:roomId"
+                    element={
+                      <ProtectedRoute>
+                        <MainLayout>
+                          <RoomView />
+                        </MainLayout>
+                      </ProtectedRoute>
+                    }
+                  />
 
-              {/* Default Redirect */}
-              <Route path="/" element={<Navigate to="/login" replace />} />
-              <Route path="*" element={<Navigate to="/login" replace />} />
-            </Routes>
-          </ChatProvider>
-        </RoomProvider>
-      </AuthProvider>
+                  {/* Default Redirect */}
+                  <Route path="/" element={<Navigate to="/login" replace />} />
+                  <Route path="*" element={<Navigate to="/login" replace />} />
+                </Routes>
+              </ChatProvider>
+            </NotificationProvider>
+          </RoomProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </Router>
   );
 }

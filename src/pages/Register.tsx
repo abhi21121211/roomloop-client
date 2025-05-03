@@ -1,17 +1,19 @@
 import React, { useState } from "react";
 import {
   Box,
-  Button,
   Container,
-  TextField,
   Typography,
-  Paper,
   Grid,
   Link as MuiLink,
+  Stack,
+  useTheme as useMuiTheme,
 } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import ErrorMessage from "../components/common/ErrorMessage";
+import StyledCard from "../components/common/StyledCard";
+import StyledTextField from "../components/common/StyledTextField";
+import StyledButton from "../components/common/StyledButton";
 
 const Register: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -30,6 +32,7 @@ const Register: React.FC = () => {
 
   const { register, error, clearError } = useAuth();
   const navigate = useNavigate();
+  const theme = useMuiTheme();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -97,97 +100,135 @@ const Register: React.FC = () => {
   };
 
   return (
-    <Container component="main" maxWidth="xs">
-      <Paper
-        elevation={3}
+    <Container component="main" maxWidth="sm">
+      <Box
         sx={{
           mt: 8,
-          p: 4,
+          mb: 8,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
         }}
       >
-        <Typography component="h1" variant="h5">
-          Create a RoomLoop Account
-        </Typography>
+        <StyledCard sx={{ width: "100%" }}>
+          <Stack spacing={3} alignItems="center" sx={{ width: "100%" }}>
+            <Typography
+              component="h1"
+              variant="h4"
+              fontWeight="bold"
+              color="primary"
+              sx={{
+                backgroundImage:
+                  theme.palette.mode === "dark"
+                    ? "linear-gradient(45deg, #7986cb 30%, #5c6bc0 90%)"
+                    : "linear-gradient(45deg, #3f51b5 30%, #303f9f 90%)",
+                backgroundClip: "text",
+                WebkitBackgroundClip: "text",
+                color: "transparent",
+                mb: 1,
+              }}
+            >
+              Create a RoomLoop Account
+            </Typography>
 
-        <ErrorMessage message={error} />
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Fill in the details to join our community
+            </Typography>
 
-        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            id="username"
-            label="Username"
-            name="username"
-            autoComplete="username"
-            autoFocus
-            value={formData.username}
-            onChange={handleChange}
-            error={!!formErrors.username}
-            helperText={formErrors.username}
-          />
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            id="email"
-            label="Email Address"
-            name="email"
-            autoComplete="email"
-            value={formData.email}
-            onChange={handleChange}
-            error={!!formErrors.email}
-            helperText={formErrors.email}
-          />
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            name="password"
-            label="Password"
-            type="password"
-            id="password"
-            autoComplete="new-password"
-            value={formData.password}
-            onChange={handleChange}
-            error={!!formErrors.password}
-            helperText={formErrors.password}
-          />
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            name="confirmPassword"
-            label="Confirm Password"
-            type="password"
-            id="confirmPassword"
-            autoComplete="new-password"
-            value={formData.confirmPassword}
-            onChange={handleChange}
-            error={!!formErrors.confirmPassword}
-            helperText={formErrors.confirmPassword}
-          />
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            color="primary"
-            sx={{ mt: 3, mb: 2 }}
-          >
-            Sign Up
-          </Button>
-          <Grid container justifyContent="flex-end">
-            <Grid>
-              <MuiLink component={Link} to="/login" variant="body2">
-                Already have an account? Sign in
-              </MuiLink>
-            </Grid>
-          </Grid>
-        </Box>
-      </Paper>
+            <ErrorMessage message={error} />
+
+            <Box
+              component="form"
+              onSubmit={handleSubmit}
+              sx={{ width: "100%" }}
+            >
+              <StyledTextField
+                margin="normal"
+                required
+                fullWidth
+                id="username"
+                label="Username"
+                name="username"
+                autoComplete="username"
+                autoFocus
+                value={formData.username}
+                onChange={handleChange}
+                error={!!formErrors.username}
+                helperText={formErrors.username}
+              />
+              <StyledTextField
+                margin="normal"
+                required
+                fullWidth
+                id="email"
+                label="Email Address"
+                name="email"
+                autoComplete="email"
+                value={formData.email}
+                onChange={handleChange}
+                error={!!formErrors.email}
+                helperText={formErrors.email}
+              />
+              <StyledTextField
+                margin="normal"
+                required
+                fullWidth
+                name="password"
+                label="Password"
+                type="password"
+                id="password"
+                autoComplete="new-password"
+                value={formData.password}
+                onChange={handleChange}
+                error={!!formErrors.password}
+                helperText={formErrors.password}
+              />
+              <StyledTextField
+                margin="normal"
+                required
+                fullWidth
+                name="confirmPassword"
+                label="Confirm Password"
+                type="password"
+                id="confirmPassword"
+                autoComplete="new-password"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                error={!!formErrors.confirmPassword}
+                helperText={formErrors.confirmPassword}
+              />
+              <StyledButton
+                type="submit"
+                fullWidth
+                variant="contained"
+                color="primary"
+                sx={{ mt: 3, mb: 2 }}
+              >
+                Sign Up
+              </StyledButton>
+              <Grid container justifyContent="center">
+                <Grid item>
+                  <MuiLink
+                    component={Link}
+                    to="/login"
+                    variant="body2"
+                    sx={{
+                      textDecoration: "none",
+                      fontWeight: "medium",
+                      transition: "color 0.2s",
+                      "&:hover": {
+                        color: "primary.main",
+                      },
+                    }}
+                  >
+                    Already have an account? Sign in
+                  </MuiLink>
+                </Grid>
+              </Grid>
+            </Box>
+          </Stack>
+        </StyledCard>
+      </Box>
     </Container>
   );
 };

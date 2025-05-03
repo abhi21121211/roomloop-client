@@ -61,98 +61,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({
     messagesRef.current = messageState.messages;
   }, [messageState.messages]);
 
-  // Initialize socket connection once on component mount
-  useEffect(() => {
-    // Initialize the socket
-    const socket = socketService.initSocket();
-
-    // Global socket event handlers (not dependent on current room)
-    const handleReceiveMessage = (data: any) => {
-      console.log("Socket: received message globally:", data);
-      // Use the message data directly from the socket event
-      const incomingMessage = data.message || data;
-      const roomId =
-        data.roomId ||
-        (incomingMessage.room &&
-          (typeof incomingMessage.room === "string"
-            ? incomingMessage.room
-            : incomingMessage.room._id));
-
-      if (roomId && roomId === activeRoomRef.current) {
-        console.log("Updating state with new message:", incomingMessage);
-
-        // Check if this message already exists in our state to avoid duplicates
-        const messageExists = messagesRef.current.some(
-          (msg) => msg._id === incomingMessage._id
-        );
-
-        if (!messageExists) {
-          setMessageState((prevState) => ({
-            ...prevState,
-            messages: [...prevState.messages, incomingMessage],
-          }));
-        }
-      }
-    };
-
-    // Set up global message receiver
-    socket.on("receive_message", handleReceiveMessage);
-
-    return () => {
-      // Clean up all listeners on unmount
-      if (socket) {
-        socket.off("receive_message", handleReceiveMessage);
-        socket.off("receive_reaction");
-      }
-    };
-  }, []);
-
-  // Set up socket listeners for new room selection
-  useEffect(() => {
-    if (!currentRoom) {
-      // Clear messages when no room is selected
-      setMessageState(initialMessageState);
-      setReactionState(initialReactionState);
-      activeRoomRef.current = null;
-      return;
-    }
-
-    // Update the active room reference
-    activeRoomRef.current = currentRoom._id;
-    console.log("Active room updated to:", currentRoom._id);
-
-    // Get the socket instance
-    const socket = socketService.initSocket();
-
-    // Room-specific socket event handlers
-    const handleReceiveReaction = (data: Reaction) => {
-      console.log("Received reaction:", data);
-      // Only update if the reaction is for the current room
-      if (data.room === activeRoomRef.current) {
-        setReactionState((prevState) => ({
-          ...prevState,
-          reactions: [...prevState.reactions, data],
-        }));
-      }
-    };
-
-    // Set up room-specific event handlers
-    socket.on("receive_reaction", handleReceiveReaction);
-
-    // Make sure we've joined the room
-    socketService.joinRoom(currentRoom._id);
-
-    // Fetch messages for this room
-    fetchMessages(currentRoom._id);
-
-    // Clean up function
-    return () => {
-      socket.off("receive_reaction", handleReceiveReaction);
-      // We don't leave the room here anymore - that's handled by RoomContext
-    };
-  }, [currentRoom]);
-
-  // Fetch messages for a room
+  // Fetch messages for a room - declare this before any effect that uses it
   const fetchMessages = useCallback(async (roomId: string): Promise<void> => {
     if (!roomId) return;
 
@@ -198,6 +107,105 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({
     }
   }, []);
 
+  // Initialize socket connection once on component mount
+  useEffect(() => {
+    // Initialize the socket
+    const socket = socketService.initSocket();
+
+    // We'll remove the global receive_message handler since it causes duplicates
+    // Only handle global socket cleanup
+
+    return () => {
+      // Clean up all listeners on unmount
+      console.log("Cleaning up global socket listeners");
+      if (socket) {
+        socket.off("receive_reaction");
+      }
+    };
+  }, []);
+
+  // Set up socket listeners for new room selection
+  useEffect(() => {
+    if (!currentRoom) {
+      // Clear messages when no room is selected
+      setMessageState(initialMessageState);
+      setReactionState(initialReactionState);
+      activeRoomRef.current = null;
+      return;
+    }
+
+    // Update the active room reference
+    activeRoomRef.current = currentRoom._id;
+    console.log("Active room updated to:", currentRoom._id);
+
+    // Get the socket instance
+    const socket = socketService.initSocket();
+
+    // Room-specific socket event handlers for reactions
+    const handleReceiveReaction = (data: Reaction) => {
+      console.log("Received reaction:", data);
+      // Only update if the reaction is for the current room
+      if (data.room === activeRoomRef.current) {
+        setReactionState((prevState) => ({
+          ...prevState,
+          reactions: [...prevState.reactions, data],
+        }));
+      }
+    };
+
+    // Room-specific socket event handlers for messages
+    const handleReceiveRoomMessage = (data: any) => {
+      console.log("Socket: received message in room:", data);
+
+      const incomingMessage = data.message || data;
+      const roomId =
+        data.roomId ||
+        (incomingMessage.room &&
+          (typeof incomingMessage.room === "string"
+            ? incomingMessage.room
+            : incomingMessage.room._id));
+
+      // Explicitly check if the message belongs to the current active room
+      if (roomId === currentRoom._id) {
+        console.log("Adding message to current room:", incomingMessage);
+
+        // Check if this message already exists in our state to avoid duplicates
+        const messageExists = messagesRef.current.some(
+          (msg) => msg._id === incomingMessage._id
+        );
+
+        if (!messageExists) {
+          setMessageState((prevState) => ({
+            ...prevState,
+            messages: [...prevState.messages, incomingMessage],
+          }));
+        }
+      }
+    };
+
+    // Set up room-specific event handlers
+    socket.on("receive_reaction", handleReceiveReaction);
+    socket.on("receive_message", handleReceiveRoomMessage);
+
+    console.log(
+      `Joined room ${currentRoom._id} and set up room-specific handlers`
+    );
+
+    // Make sure we've joined the room
+    socketService.joinRoom(currentRoom._id);
+
+    // Fetch messages for this room
+    fetchMessages(currentRoom._id);
+
+    // Clean up function
+    return () => {
+      console.log(`Cleaning up listeners for room ${currentRoom._id}`);
+      socket.off("receive_reaction", handleReceiveReaction);
+      socket.off("receive_message", handleReceiveRoomMessage);
+      // We don't leave the room here anymore - that's handled by RoomContext
+    };
+  }, [currentRoom, fetchMessages]);
+
   // Send a message
   const sendMessage = async (
     roomId: string,
@@ -207,6 +215,9 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({
 
     try {
       setMessageState((prev) => ({ ...prev, loading: true, error: null }));
+
+      // Ensure we're connected to the room via socket
+      socketService.joinRoom(roomId);
 
       // Send through API
       const response = await roomsAPI.sendMessage(roomId, content);
@@ -226,6 +237,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({
         error: null,
       }));
     } catch (error: any) {
+      console.error("Send message error:", error);
       setMessageState((prev) => ({
         ...prev,
         loading: false,
@@ -240,6 +252,9 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({
 
     try {
       setReactionState((prev) => ({ ...prev, loading: true, error: null }));
+
+      // Ensure we're connected to the room via socket
+      socketService.joinRoom(roomId);
 
       // Send through API
       const response = await roomsAPI.sendReaction(roomId, emoji);
@@ -260,6 +275,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({
         error: null,
       }));
     } catch (error: any) {
+      console.error("Send reaction error:", error);
       setReactionState((prev) => ({
         ...prev,
         loading: false,
