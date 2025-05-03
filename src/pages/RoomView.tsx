@@ -76,6 +76,7 @@ const RoomView: React.FC = () => {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [roomEndDialogOpen, setRoomEndDialogOpen] = useState(false);
   const [redirectCountdown, setRedirectCountdown] = useState(5);
+  const [bypassRedirect, setBypassRedirect] = useState(false);
 
   // Emoji menu state
   const [emojiMenuAnchor, setEmojiMenuAnchor] = useState<null | HTMLElement>(
@@ -109,6 +110,79 @@ const RoomView: React.FC = () => {
   ];
 
   const theme = useTheme();
+
+  // Check if this is the first time viewing this specific closed room
+  useEffect(() => {
+    if (roomId && currentRoom?.status === RoomStatus.CLOSED) {
+      const viewedClosedRooms = JSON.parse(
+        localStorage.getItem("viewedClosedRooms") || "[]"
+      );
+
+      if (!viewedClosedRooms.includes(roomId)) {
+        // First time viewing this closed room
+        setRoomEndDialogOpen(true);
+      } else {
+        // User has previously chosen to view this closed room
+        setBypassRedirect(true);
+      }
+    }
+  }, [roomId, currentRoom]);
+
+  // Check if room has ended or if current time is past end time
+  const checkRoomEnded = useCallback(() => {
+    if (!currentRoom) return false;
+
+    // Room is already in CLOSED status
+    if (currentRoom.status === RoomStatus.CLOSED) return true;
+
+    // Check if current time is past the end time
+    const now = new Date();
+    const endTime = new Date(currentRoom.endTime);
+    return now > endTime;
+  }, [currentRoom]);
+
+  // Handle room end and redirect
+  useEffect(() => {
+    // Don't redirect if user has chosen to view this closed room
+    if (bypassRedirect) return;
+
+    let countdownInterval: NodeJS.Timeout;
+
+    // If room has ended, show the dialog and start countdown
+    if (currentRoom && checkRoomEnded()) {
+      setRoomEndDialogOpen(true);
+
+      countdownInterval = setInterval(() => {
+        setRedirectCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(countdownInterval);
+            navigate("/dashboard");
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (countdownInterval) clearInterval(countdownInterval);
+    };
+  }, [currentRoom, checkRoomEnded, navigate, bypassRedirect]);
+
+  // Continuously check if room has ended (every 10 seconds)
+  useEffect(() => {
+    // Don't check for room ending if user has chosen to view this closed room
+    if (bypassRedirect) return;
+
+    const checkInterval = setInterval(() => {
+      if (checkRoomEnded() && !roomEndDialogOpen) {
+        setRoomEndDialogOpen(true);
+        setRedirectCountdown(5);
+      }
+    }, 10000); // Check every 10 seconds
+
+    return () => clearInterval(checkInterval);
+  }, [checkRoomEnded, roomEndDialogOpen, bypassRedirect]);
 
   useEffect(() => {
     // Store roomId in a local variable to avoid stale closure issues
@@ -258,55 +332,30 @@ const RoomView: React.FC = () => {
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-  // Check if room has ended or if current time is past end time
-  const checkRoomEnded = useCallback(() => {
-    if (!currentRoom) return false;
-
-    // Room is already in CLOSED status
-    if (currentRoom.status === RoomStatus.CLOSED) return true;
-
-    // Check if current time is past the end time
-    const now = new Date();
-    const endTime = new Date(currentRoom.endTime);
-    return now > endTime;
-  }, [currentRoom]);
-
-  // Handle room end and redirect
-  useEffect(() => {
-    let countdownInterval: NodeJS.Timeout;
-
-    // If room has ended, show the dialog and start countdown
-    if (currentRoom && checkRoomEnded()) {
-      setRoomEndDialogOpen(true);
-
-      countdownInterval = setInterval(() => {
-        setRedirectCountdown((prev) => {
-          if (prev <= 1) {
-            clearInterval(countdownInterval);
-            navigate("/dashboard");
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-
-    return () => {
-      if (countdownInterval) clearInterval(countdownInterval);
-    };
-  }, [currentRoom, checkRoomEnded, navigate]);
-
-  // Continuously check if room has ended (every 10 seconds)
-  useEffect(() => {
-    const checkInterval = setInterval(() => {
-      if (checkRoomEnded() && !roomEndDialogOpen) {
-        setRoomEndDialogOpen(true);
-        setRedirectCountdown(5);
+  // Handle user choosing to view the closed room
+  const handleViewClosedRoom = useCallback(() => {
+    if (roomId) {
+      // Store this room ID in local storage to remember user's preference
+      const viewedClosedRooms = JSON.parse(
+        localStorage.getItem("viewedClosedRooms") || "[]"
+      );
+      if (!viewedClosedRooms.includes(roomId)) {
+        viewedClosedRooms.push(roomId);
+        localStorage.setItem(
+          "viewedClosedRooms",
+          JSON.stringify(viewedClosedRooms)
+        );
       }
-    }, 10000); // Check every 10 seconds
 
-    return () => clearInterval(checkInterval);
-  }, [checkRoomEnded, roomEndDialogOpen]);
+      setRoomEndDialogOpen(false);
+      setBypassRedirect(true);
+    }
+  }, [roomId]);
+
+  // Handle user choosing to go to dashboard
+  const handleGoToDashboard = useCallback(() => {
+    navigate("/dashboard");
+  }, [navigate]);
 
   if (roomLoading) return <Loading message="Loading room details..." />;
   if (!currentRoom) return <ErrorMessage message="Room not found" />;
@@ -339,6 +388,9 @@ const RoomView: React.FC = () => {
         open={roomEndDialogOpen}
         roomTitle={currentRoom?.title || ""}
         redirectCountdown={redirectCountdown}
+        onViewRoom={handleViewClosedRoom}
+        onGoToDashboard={handleGoToDashboard}
+        showViewOption={true}
       />
 
       <Paper elevation={1} sx={{ p: 3, mb: 3, borderRadius: 2 }}>
@@ -1018,6 +1070,22 @@ const RoomView: React.FC = () => {
               </Typography>
             </Box>
           </Box>
+
+          {/* Add reactions button for both live and closed rooms */}
+          <Box sx={{ marginLeft: "auto" }}>
+            <IconButton
+              size="small"
+              onClick={handleOpenEmojiMenu}
+              sx={{
+                color: "white",
+                "&:hover": {
+                  backgroundColor: "rgba(255, 255, 255, 0.1)",
+                },
+              }}
+            >
+              <EmojiIcon fontSize="small" />
+            </IconButton>
+          </Box>
         </Box>
 
         {chatError && (
@@ -1262,58 +1330,62 @@ const RoomView: React.FC = () => {
           sx={{ maxHeight: 300 }}
         >
           <Box sx={{ p: 1, pb: 0.5 }}>
+            {isLive && (
+              <>
+                <Typography
+                  variant="caption"
+                  sx={{ p: 1, color: "text.secondary", display: "block" }}
+                >
+                  Insert in message
+                </Typography>
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 0.5,
+                    p: 1,
+                    pb: 0,
+                  }}
+                >
+                  {["😊", "👍", "❤️", "🎉", "😂", "🤔", "👏", "🙏", "🔥"].map(
+                    (emoji) => (
+                      <Chip
+                        key={emoji}
+                        label={emoji}
+                        onClick={() => handleInsertEmoji(emoji)}
+                        sx={{
+                          fontSize: "1.2rem",
+                          height: 32,
+                          cursor: "pointer",
+                          "&:hover": {
+                            bgcolor: "rgba(0,0,0,0.05)",
+                          },
+                        }}
+                      />
+                    )
+                  )}
+                </Box>
+                <Divider sx={{ my: 1 }} />
+              </>
+            )}
             <Typography
               variant="caption"
               sx={{ p: 1, color: "text.secondary", display: "block" }}
             >
-              Insert in message
-            </Typography>
-            <Box
-              sx={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 0.5,
-                p: 1,
-                pb: 0,
-              }}
-            >
-              {["😊", "👍", "❤️", "🎉", "😂", "🤔", "👏", "🙏", "🔥"].map(
-                (emoji) => (
-                  <Chip
-                    key={emoji}
-                    label={emoji}
-                    onClick={() => handleInsertEmoji(emoji)}
-                    sx={{
-                      fontSize: "1.2rem",
-                      height: 32,
-                      cursor: "pointer",
-                      "&:hover": {
-                        bgcolor: "rgba(0,0,0,0.05)",
-                      },
-                    }}
-                  />
-                )
-              )}
-            </Box>
-          </Box>
-          <Divider sx={{ my: 1 }} />
-          <Box sx={{ p: 1, pt: 0 }}>
-            <Typography
-              variant="caption"
-              sx={{ p: 1, color: "text.secondary", display: "block" }}
-            >
-              Send as reaction
+              {isLive ? "Send as reaction" : "View reactions"}
             </Typography>
             <Box sx={{ display: "flex", flexDirection: "column" }}>
               {commonEmojis.map(({ emoji, label, icon }) => (
                 <MenuItem
                   key={emoji}
-                  onClick={() => handleSelectEmoji(emoji)}
+                  onClick={() => (isLive ? handleSelectEmoji(emoji) : null)}
+                  disabled={!isLive}
                   sx={{
                     py: 1,
                     borderRadius: 1,
                     my: 0.2,
                     gap: 1,
+                    opacity: isLive ? 1 : 0.7,
                   }}
                 >
                   <Box sx={{ fontSize: "1.2rem", mr: 1 }}>{emoji}</Box>

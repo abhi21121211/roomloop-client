@@ -246,7 +246,7 @@ const Dashboard = () => {
             color="primary"
             variant={room.status === RoomStatus.LIVE ? "contained" : "outlined"}
             onClick={() => handleJoinRoom(room._id)}
-            disabled={room.status === RoomStatus.CLOSED}
+            // disabled={room.status === RoomStatus.CLOSED}
             fullWidth
             sx={{
               mt: 1,

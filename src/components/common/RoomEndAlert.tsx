@@ -7,19 +7,31 @@ import {
   CircularProgress,
   useTheme,
   alpha,
+  Button,
+  Stack,
 } from "@mui/material";
-import { AccessTime as AccessTimeIcon } from "@mui/icons-material";
+import {
+  AccessTime as AccessTimeIcon,
+  Dashboard as DashboardIcon,
+  Visibility as VisibilityIcon,
+} from "@mui/icons-material";
 
 interface RoomEndAlertProps {
   open: boolean;
   roomTitle: string;
   redirectCountdown: number;
+  onViewRoom?: () => void;
+  onGoToDashboard?: () => void;
+  showViewOption?: boolean;
 }
 
 const RoomEndAlert: React.FC<RoomEndAlertProps> = ({
   open,
   roomTitle,
   redirectCountdown,
+  onViewRoom,
+  onGoToDashboard,
+  showViewOption = true,
 }) => {
   const theme = useTheme();
 
@@ -119,6 +131,42 @@ const RoomEndAlert: React.FC<RoomEndAlertProps> = ({
             "{roomTitle}" has concluded. You will be redirected to the dashboard
             in {redirectCountdown} seconds.
           </Typography>
+
+          <Stack direction="row" spacing={2} justifyContent="center" mt={3}>
+            <Button
+              variant="outlined"
+              color="primary"
+              size="large"
+              startIcon={<DashboardIcon />}
+              onClick={onGoToDashboard}
+              sx={{
+                borderRadius: 2,
+                px: 3,
+                py: 1,
+                fontWeight: "medium",
+              }}
+            >
+              Go to Dashboard
+            </Button>
+
+            {showViewOption && (
+              <Button
+                variant="contained"
+                color="primary"
+                size="large"
+                startIcon={<VisibilityIcon />}
+                onClick={onViewRoom}
+                sx={{
+                  borderRadius: 2,
+                  px: 3,
+                  py: 1,
+                  fontWeight: "medium",
+                }}
+              >
+                View Room History
+              </Button>
+            )}
+          </Stack>
         </Box>
       </DialogContent>
     </Dialog>
