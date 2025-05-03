@@ -1,0 +1,10 @@
+# Ignore these files/folders when deploying to Vercel
+README.md
+.git
+node_modules
+.github
+.gitignore
+deploy.sh
+server-changes-needed.txt
+server-changes-needed-fixed.txt
+socket-test.js 
