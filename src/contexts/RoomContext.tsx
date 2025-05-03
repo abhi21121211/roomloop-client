@@ -16,6 +16,7 @@ interface RoomContextType extends RoomState {
   joinRoom: (roomId: string) => Promise<void>;
   leaveRoom: (roomId: string) => Promise<void>;
   fetchPublicRooms: () => Promise<void>;
+  fetchAllRooms: () => Promise<void>;
   fetchUserRooms: () => Promise<void>;
   fetchRoomById: (roomId: string) => Promise<Room>;
   inviteUsers: (roomId: string, usernames: string[]) => Promise<void>;
@@ -170,6 +171,28 @@ export const RoomProvider: React.FC<{ children: ReactNode }> = ({
     }
   }, []);
 
+  // Fetch all rooms including private ones
+  const fetchAllRooms = useCallback(async (): Promise<void> => {
+    try {
+      setState((prev) => ({ ...prev, loading: true, error: null }));
+
+      const response = await roomsAPI.getAllRooms();
+
+      setState((prev) => ({
+        ...prev,
+        publicRooms: response.data.rooms,
+        loading: false,
+        error: null,
+      }));
+    } catch (error: any) {
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        error: error.response?.data?.message || "Failed to fetch rooms",
+      }));
+    }
+  }, []);
+
   // Fetch a single room by ID
   const fetchRoomById = async (roomId: string): Promise<Room> => {
     try {
@@ -239,6 +262,7 @@ export const RoomProvider: React.FC<{ children: ReactNode }> = ({
         joinRoom,
         leaveRoom,
         fetchPublicRooms,
+        fetchAllRooms,
         fetchUserRooms,
         fetchRoomById,
         inviteUsers,

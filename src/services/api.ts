@@ -41,6 +41,8 @@ export const roomsAPI = {
 
   getPublicRooms: () => api.get("/rooms/public"),
 
+  getAllRooms: () => api.get("/rooms/all"),
+
   getUserRooms: () => api.get("/rooms/user"),
 
   getRoomById: (roomId: string) => api.get(`/rooms/${roomId}`),

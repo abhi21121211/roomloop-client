@@ -27,6 +27,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import ThemeToggle from "../common/ThemeToggle";
 import NotificationBell from "../common/NotificationBell";
+import Footer from "../common/Footer";
 
 const drawerWidth = 240;
 
@@ -392,10 +393,15 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               ? "linear-gradient(145deg, rgba(18,18,18,1) 0%, rgba(25,25,35,1) 100%)"
               : "linear-gradient(145deg, rgba(240,240,245,1) 0%, rgba(255,255,255,1) 100%)",
           minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         <Toolbar />
-        <Container maxWidth="lg">{children}</Container>
+        <Container maxWidth="lg" sx={{ flexGrow: 1, mb: 4 }}>
+          {children}
+        </Container>
+        <Footer />
       </Box>
     </Box>
   );

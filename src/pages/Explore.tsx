@@ -11,11 +11,14 @@ import {
   Stack,
   alpha,
   useTheme as useMuiTheme,
+  Tabs,
+  Tab,
+  Pagination,
 } from "@mui/material";
 import { Search as SearchIcon } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useRoom } from "../contexts/RoomContext";
-import { Room, RoomStatus } from "../types";
+import { Room, RoomStatus, RoomType } from "../types";
 import Loading from "../components/common/Loading";
 import ErrorMessage from "../components/common/ErrorMessage";
 import GridItem from "../components/common/GridItem";
@@ -25,25 +28,76 @@ import StyledCard from "../components/common/StyledCard";
 import StyledButton from "../components/common/StyledButton";
 
 /**
- * Explore Component - Browse and join public rooms
+ * Explore Component - Browse and join rooms
  */
 const Explore = () => {
-  const { publicRooms, loading, error, fetchPublicRooms, joinRoom } = useRoom();
+  const { publicRooms, loading, error, fetchAllRooms, joinRoom } = useRoom();
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredRooms, setFilteredRooms] = useState<Room[]>([]);
+  const [roomType, setRoomType] = useState(0); // 0: Public, 1: Private
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 5;
   const navigate = useNavigate();
   const { user } = useAuth();
   const theme = useMuiTheme();
 
-  // Fetch public rooms only once when component mounts
+  // Fetch all rooms including private ones when component mounts
   useEffect(() => {
-    fetchPublicRooms();
-  }, [fetchPublicRooms]); // fetchPublicRooms is memoized with useCallback
+    fetchAllRooms();
+  }, [fetchAllRooms]); // fetchAllRooms is memoized with useCallback
+
+  // Check if the user is already part of the room
+  const isUserInRoom = useCallback(
+    (room: Room) => {
+      if (!user) return false;
+
+      // Check if user is the creator
+      if (typeof room.creator === "object") {
+        // Handle the case where creator is an object that might have _id or id
+        const creatorId = (room.creator as any)._id || room.creator.id;
+        if (creatorId === user.id) return true;
+      }
+
+      // Check if user is a participant
+      return room.participants.some(
+        (participant) =>
+          typeof participant === "object" && participant.id === user.id
+      );
+    },
+    [user]
+  );
 
   // Filter rooms when publicRooms or searchTerm changes
   useEffect(() => {
     if (publicRooms) {
-      const filtered = publicRooms.filter((room) => {
+      // First filter by public/private
+      const roomsByType = publicRooms.filter((room) => {
+        // For public rooms tab
+        if (roomType === 0) return room.roomType === RoomType.PUBLIC;
+
+        // For private rooms tab - include if it's private AND either:
+        // 1. You are the creator
+        // 2. You are invited/participating
+        if (roomType === 1) {
+          const isPrivate = room.roomType === RoomType.PRIVATE;
+
+          // Check if you're the creator
+          const isCreator =
+            user &&
+            typeof room.creator === "object" &&
+            (room.creator as any)._id === user.id;
+
+          // Check if you're a participant or invited
+          const isParticipant = isUserInRoom(room);
+
+          return isPrivate && (isCreator || isParticipant);
+        }
+
+        return false;
+      });
+
+      // Then filter by search term
+      const filtered = roomsByType.filter((room) => {
         const searchLower = searchTerm.toLowerCase();
         return (
           room.title.toLowerCase().includes(searchLower) ||
@@ -51,9 +105,11 @@ const Explore = () => {
           room.tags.some((tag) => tag.toLowerCase().includes(searchLower))
         );
       });
+
       setFilteredRooms(filtered);
+      setPage(1); // Reset to first page whenever filters change
     }
-  }, [publicRooms, searchTerm]);
+  }, [publicRooms, searchTerm, roomType, user, isUserInRoom]);
 
   const formatDateTime = (dateString: string | Date) => {
     const date = new Date(dateString);
@@ -66,28 +122,16 @@ const Explore = () => {
     });
   };
 
-  // Check if the user is already part of the room
-  const isUserInRoom = (room: Room) => {
-    if (!user) return false;
-
-    // Check if user is the creator
-    if (typeof room.creator === "object") {
-      // Handle the case where creator is an object that might have _id or id
-      const creatorId = (room.creator as any)._id || room.creator.id;
-      if (creatorId === user.id) return true;
-    }
-
-    // Check if user is a participant
-    return room.participants.some(
-      (participant) =>
-        typeof participant === "object" && participant.id === user.id
-    );
-  };
-
   // Memoize the join handler
   const handleJoin = useCallback(
     async (room: Room) => {
       try {
+        // For closed rooms, just navigate to view the room details
+        if (room.status === RoomStatus.CLOSED) {
+          navigate(`/rooms/${room._id}`);
+          return;
+        }
+
         // If user is already in the room, just navigate to it
         if (isUserInRoom(room)) {
           navigate(`/rooms/${room._id}`);
@@ -104,10 +148,31 @@ const Explore = () => {
         }
       }
     },
-    [joinRoom, navigate, user]
+    [joinRoom, navigate, isUserInRoom]
   );
 
-  if (loading) return <Loading message="Loading public rooms..." />;
+  const handleRoomTypeChange = (
+    event: React.SyntheticEvent,
+    newValue: number
+  ) => {
+    setRoomType(newValue);
+  };
+
+  const handlePageChange = (
+    event: React.ChangeEvent<unknown>,
+    value: number
+  ) => {
+    setPage(value);
+  };
+
+  // Calculate pagination
+  const paginatedRooms = filteredRooms.slice(
+    (page - 1) * itemsPerPage,
+    page * itemsPerPage
+  );
+  const totalPages = Math.ceil(filteredRooms.length / itemsPerPage);
+
+  if (loading) return <Loading message="Loading rooms..." />;
 
   return (
     <Box mb={4}>
@@ -128,13 +193,39 @@ const Explore = () => {
           color: "transparent",
         }}
       >
-        Explore Public Rooms
+        Explore Rooms
       </Typography>
       <Typography variant="body1" color="text.secondary" paragraph>
-        Discover and join public events and meetups.
+        Discover and join events and meetups. Only showing live and upcoming
+        rooms.
       </Typography>
 
       <ErrorMessage message={error} />
+
+      {/* Room Type Tabs */}
+      <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
+        <Tabs
+          value={roomType}
+          onChange={handleRoomTypeChange}
+          variant="fullWidth"
+          sx={{
+            "& .MuiTab-root": {
+              fontWeight: 600,
+              transition: "all 0.2s",
+              "&.Mui-selected": {
+                color: theme.palette.primary.main,
+              },
+            },
+            "& .MuiTabs-indicator": {
+              height: 3,
+              borderRadius: 1.5,
+            },
+          }}
+        >
+          <Tab label="Public Rooms" />
+          <Tab label="Private Rooms" />
+        </Tabs>
+      </Box>
 
       {/* Search Bar */}
       <Box mb={4} mt={2}>
@@ -165,15 +256,28 @@ const Explore = () => {
       />
 
       {/* Results count */}
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Showing {filteredRooms.length}{" "}
-        {filteredRooms.length === 1 ? "room" : "rooms"}
-      </Typography>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={2}
+      >
+        <Typography variant="body2" color="text.secondary">
+          Showing {filteredRooms.length}{" "}
+          {filteredRooms.length === 1 ? "room" : "rooms"}
+        </Typography>
 
-      {/* Rooms Grid */}
+        {totalPages > 1 && (
+          <Typography variant="body2" color="text.secondary">
+            Page {page} of {totalPages}
+          </Typography>
+        )}
+      </Box>
+
+      {/* Rooms List */}
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        {filteredRooms.length > 0 ? (
-          filteredRooms.map((room) => (
+        {paginatedRooms.length > 0 ? (
+          paginatedRooms.map((room) => (
             <RoomCard
               key={room._id}
               room={room}
@@ -185,7 +289,7 @@ const Explore = () => {
         ) : (
           <Box textAlign="center" py={4}>
             <Typography variant="h6" color="text.secondary">
-              No rooms found
+              No {roomType === 0 ? "public" : "private"} rooms found
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Try adjusting your search or check back later for new events.
@@ -193,6 +297,21 @@ const Explore = () => {
           </Box>
         )}
       </Box>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <Box display="flex" justifyContent="center" mt={4}>
+          <Pagination
+            count={totalPages}
+            page={page}
+            onChange={handlePageChange}
+            color="primary"
+            variant="outlined"
+            shape="rounded"
+            size="large"
+          />
+        </Box>
+      )}
     </Box>
   );
 };
@@ -300,15 +419,25 @@ const RoomCard = ({
                 : "rgba(245, 245, 245, 0.5)",
           }}
         >
-          <Typography
-            variant="h6"
-            component="h2"
-            fontWeight="600"
-            noWrap
-            sx={{ maxWidth: "70%" }}
-          >
-            {room.title}
-          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", maxWidth: "70%" }}>
+            <Typography variant="h6" component="h2" fontWeight="600" noWrap>
+              {room.title}
+            </Typography>
+            {room.roomType === RoomType.PRIVATE && (
+              <Chip
+                label="PRIVATE"
+                size="small"
+                sx={{
+                  ml: 1,
+                  backgroundColor: theme.palette.secondary.main,
+                  color: theme.palette.secondary.contrastText,
+                  fontWeight: 600,
+                  fontSize: "0.6rem",
+                  height: 20,
+                }}
+              />
+            )}
+          </Box>
           <Chip
             label={room.status.toUpperCase()}
             size="small"
@@ -403,11 +532,10 @@ const RoomCard = ({
               : "outlined"
           }
           onClick={() => onJoin(room)}
-          disabled={room.status === RoomStatus.CLOSED}
           fullWidth
           sx={{
             mt: 1,
-            opacity: room.status === RoomStatus.CLOSED ? 0.6 : 1,
+            opacity: room.status === RoomStatus.CLOSED ? 0.8 : 1,
           }}
         >
           {getButtonText()}

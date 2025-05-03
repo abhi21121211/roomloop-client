@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Box,
@@ -23,6 +23,7 @@ import {
   MenuItem,
   Tooltip,
   CircularProgress,
+  useTheme,
 } from "@mui/material";
 import {
   Send as SendIcon,
@@ -44,6 +45,8 @@ import Loading from "../components/common/Loading";
 import ErrorMessage from "../components/common/ErrorMessage";
 import GridItem from "../components/common/GridItem";
 import { useAuth } from "../contexts/AuthContext";
+import RoomEndAlert from "../components/common/RoomEndAlert";
+import { alpha } from "@mui/material/styles";
 
 const RoomView: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
@@ -71,6 +74,8 @@ const RoomView: React.FC = () => {
   const [inviteError, setInviteError] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [roomEndDialogOpen, setRoomEndDialogOpen] = useState(false);
+  const [redirectCountdown, setRedirectCountdown] = useState(5);
 
   // Emoji menu state
   const [emojiMenuAnchor, setEmojiMenuAnchor] = useState<null | HTMLElement>(
@@ -102,6 +107,8 @@ const RoomView: React.FC = () => {
       icon: <CelebrationIcon fontSize="small" color="success" />,
     },
   ];
+
+  const theme = useTheme();
 
   useEffect(() => {
     // Store roomId in a local variable to avoid stale closure issues
@@ -251,6 +258,56 @@ const RoomView: React.FC = () => {
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
+  // Check if room has ended or if current time is past end time
+  const checkRoomEnded = useCallback(() => {
+    if (!currentRoom) return false;
+
+    // Room is already in CLOSED status
+    if (currentRoom.status === RoomStatus.CLOSED) return true;
+
+    // Check if current time is past the end time
+    const now = new Date();
+    const endTime = new Date(currentRoom.endTime);
+    return now > endTime;
+  }, [currentRoom]);
+
+  // Handle room end and redirect
+  useEffect(() => {
+    let countdownInterval: NodeJS.Timeout;
+
+    // If room has ended, show the dialog and start countdown
+    if (currentRoom && checkRoomEnded()) {
+      setRoomEndDialogOpen(true);
+
+      countdownInterval = setInterval(() => {
+        setRedirectCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(countdownInterval);
+            navigate("/dashboard");
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (countdownInterval) clearInterval(countdownInterval);
+    };
+  }, [currentRoom, checkRoomEnded, navigate]);
+
+  // Continuously check if room has ended (every 10 seconds)
+  useEffect(() => {
+    const checkInterval = setInterval(() => {
+      if (checkRoomEnded() && !roomEndDialogOpen) {
+        setRoomEndDialogOpen(true);
+        setRedirectCountdown(5);
+      }
+    }, 10000); // Check every 10 seconds
+
+    return () => clearInterval(checkInterval);
+  }, [checkRoomEnded, roomEndDialogOpen]);
+
   if (roomLoading) return <Loading message="Loading room details..." />;
   if (!currentRoom) return <ErrorMessage message="Room not found" />;
 
@@ -277,6 +334,13 @@ const RoomView: React.FC = () => {
 
   return (
     <Box sx={{ mb: 4 }}>
+      {/* Room End Alert */}
+      <RoomEndAlert
+        open={roomEndDialogOpen}
+        roomTitle={currentRoom?.title || ""}
+        redirectCountdown={redirectCountdown}
+      />
+
       <Paper elevation={1} sx={{ p: 3, mb: 3, borderRadius: 2 }}>
         <Box
           sx={{
@@ -799,15 +863,25 @@ const RoomView: React.FC = () => {
               sx={{
                 display: "flex",
                 alignItems: "center",
-                p: 1.5,
-                borderRadius: 1,
-                bgcolor: "error.light",
-                color: "error.dark",
+                p: 2,
+                borderRadius: 2,
+                bgcolor: alpha(theme.palette.error.main, 0.1),
+                border: `1px solid ${alpha(theme.palette.error.main, 0.3)}`,
+                color:
+                  theme.palette.mode === "dark"
+                    ? theme.palette.error.light
+                    : theme.palette.error.dark,
                 mb: 2,
+                boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
               }}
             >
-              <ErrorOutlineIcon fontSize="small" sx={{ mr: 1 }} />
-              <Typography variant="body2">{inviteError}</Typography>
+              <ErrorOutlineIcon
+                fontSize="small"
+                sx={{ mr: 1, color: "error.main" }}
+              />
+              <Typography variant="body2" fontWeight="medium">
+                {inviteError}
+              </Typography>
             </Box>
           )}
           {isPrivate ? (
@@ -815,16 +889,23 @@ const RoomView: React.FC = () => {
               sx={{
                 display: "flex",
                 alignItems: "center",
-                p: 1,
-                borderRadius: 1,
-                bgcolor: "secondary.light",
-                color: "secondary.dark",
-                mb: 1,
-                opacity: 0.8,
+                p: 2,
+                borderRadius: 1.5,
+                bgcolor: alpha(theme.palette.secondary.main, 0.12),
+                border: `1px solid ${alpha(theme.palette.secondary.main, 0.3)}`,
+                color:
+                  theme.palette.mode === "dark"
+                    ? theme.palette.secondary.light
+                    : theme.palette.secondary.dark,
+                mb: 2,
+                boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
               }}
             >
-              <InfoIcon fontSize="small" sx={{ mr: 1 }} />
-              <Typography variant="caption">
+              <InfoIcon
+                fontSize="small"
+                sx={{ mr: 1.5, color: "secondary.main" }}
+              />
+              <Typography fontWeight="medium">
                 This is a private room. Only invited users can join.
               </Typography>
             </Box>
@@ -833,15 +914,20 @@ const RoomView: React.FC = () => {
               sx={{
                 display: "flex",
                 alignItems: "center",
-                p: 1,
-                borderRadius: 1,
-                bgcolor: "info.light",
-                color: "info.dark",
-                mb: 1,
-                opacity: 0.8,
+                p: 2,
+                borderRadius: 1.5,
+                bgcolor: alpha(theme.palette.info.main, 0.12),
+                border: `1px solid ${alpha(theme.palette.info.main, 0.3)}`,
+                color:
+                  theme.palette.mode === "dark"
+                    ? theme.palette.info.light
+                    : theme.palette.info.dark,
+                mb: 2,
+                boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
               }}
             >
-              <Typography variant="caption">
+              <InfoIcon fontSize="small" sx={{ mr: 1.5, color: "info.main" }} />
+              <Typography fontWeight="medium">
                 This is a public room. Anyone with the link can join, but
                 invitations help users find it.
               </Typography>
@@ -874,443 +960,371 @@ const RoomView: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {isLive && (
-        <Paper
-          elevation={1}
+      {/* Chat section - Modified to work for both live and closed rooms */}
+      <Paper
+        elevation={1}
+        sx={{
+          p: 0,
+          borderRadius: 2,
+          overflow: "hidden",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)",
+        }}
+      >
+        {/* Chat Header - Adjusted to show status for both live and closed rooms */}
+        <Box
           sx={{
-            p: 0,
-            borderRadius: 2,
-            overflow: "hidden",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)",
+            display: "flex",
+            alignItems: "center",
+            p: 1.5,
+            bgcolor: isLive
+              ? "primary.main"
+              : isPast
+              ? "grey.500"
+              : "primary.main", // Different color for closed rooms
+            color: "white",
           }}
         >
-          {/* WhatsApp Header */}
+          <Avatar
+            sx={{
+              width: 40,
+              height: 40,
+              mr: 1.5,
+              bgcolor: "rgba(255,255,255,0.2)",
+            }}
+          >
+            <PersonAddIcon fontSize="small" />
+          </Avatar>
+          <Box>
+            <Typography
+              variant="subtitle1"
+              sx={{ fontWeight: "medium", lineHeight: 1.2 }}
+            >
+              {isPast ? "Chat History" : "Live Chat"}
+            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              <Box
+                component="span"
+                sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  bgcolor: isPast ? "#f44336" : "#4CAF50", // Red for closed, green for live
+                  display: "inline-block",
+                  mr: 0.5,
+                }}
+              />
+              <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                {isPast ? "closed" : "online"}
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+
+        {chatError && (
           <Box
             sx={{
+              p: 3,
+              bgcolor: alpha(theme.palette.error.main, 0.1),
+              color:
+                theme.palette.mode === "dark"
+                  ? theme.palette.error.light
+                  : theme.palette.error.dark,
+              fontWeight: 500,
+              borderRadius: 1,
+              m: 2,
               display: "flex",
               alignItems: "center",
-              p: 1.5,
-              bgcolor: "primary.main", // WhatsApp green color
-              color: "white",
+              border: `1px solid ${alpha(theme.palette.error.main, 0.3)}`,
+              boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
             }}
           >
-            <Avatar
+            <ErrorOutlineIcon sx={{ mr: 1, color: "error.main" }} />
+            <Typography fontWeight="medium">{chatError}</Typography>
+          </Box>
+        )}
+
+        <Box
+          sx={{
+            height: 350,
+            overflow: "auto",
+            py: 2,
+            px: 1,
+            bgcolor: "#e5ddd5", // WhatsApp chat background color
+            backgroundRepeat: "repeat",
+            borderRadius: 0,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          {messages.length === 0 ? (
+            <Box
               sx={{
-                width: 40,
-                height: 40,
-                mr: 1.5,
-                bgcolor: "rgba(255,255,255,0.2)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                height: "100%",
+                backgroundColor: "rgba(255, 255, 255, 0.7)",
+                borderRadius: 4,
+                padding: 3,
+                margin: "auto",
+                maxWidth: "70%",
+                boxShadow: "0 1px 3px rgba(0, 0, 0, 0.08)",
               }}
             >
-              <PersonAddIcon fontSize="small" />
-            </Avatar>
-            <Box>
               <Typography
-                variant="subtitle1"
-                sx={{ fontWeight: "medium", lineHeight: 1.2 }}
+                align="center"
+                color="text.secondary"
+                fontWeight="medium"
               >
-                Live Chat
+                {isPast
+                  ? "No messages were sent in this room."
+                  : "No messages yet. Start the conversation!"}
               </Typography>
-              <Box sx={{ display: "flex", alignItems: "center" }}>
-                <Box
-                  component="span"
-                  sx={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    bgcolor: "#4CAF50",
-                    display: "inline-block",
-                    mr: 0.5,
-                  }}
-                />
-                <Typography variant="caption" sx={{ opacity: 0.9 }}>
-                  online
-                </Typography>
-              </Box>
-            </Box>
-          </Box>
-
-          {chatError && (
-            <Box sx={{ p: 2, bgcolor: "error.light", borderRadius: 1 }}>
-              <Typography color="error">{chatError}</Typography>
-            </Box>
-          )}
-
-          <Box
-            sx={{
-              height: 350,
-              overflow: "auto",
-              py: 2,
-              px: 1,
-              bgcolor: "#e5ddd5", // WhatsApp chat background color
-
-              backgroundRepeat: "repeat",
-              borderRadius: 0,
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            {messages.length === 0 ? (
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  height: "100%",
-                  backgroundColor: "rgba(255, 255, 255, 0.7)",
-                  borderRadius: 4,
-                  padding: 3,
-                  margin: "auto",
-                  maxWidth: "70%",
-                  boxShadow: "0 1px 3px rgba(0, 0, 0, 0.08)",
-                }}
-              >
+              {isLive && (
                 <Typography
-                  align="center"
+                  variant="caption"
                   color="text.secondary"
-                  fontWeight="medium"
+                  sx={{ mt: 1 }}
                 >
-                  No messages yet. Start the conversation!
+                  Be the first to send a message
                 </Typography>
-                {isLive && (
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ mt: 1 }}
-                  >
-                    Be the first to send a message
-                  </Typography>
-                )}
-              </Box>
-            ) : (
-              <>
-                {messages.map((message: Message, index: number) => {
-                  const isCurrentUser =
-                    typeof message.sender === "object" &&
-                    user &&
-                    (message.sender as any)._id === user.id;
-                  // Check if this is a new sender or if there's a significant time gap
-                  const showSenderInfo =
-                    index === 0 ||
-                    (typeof message.sender === "object" &&
-                      typeof messages[index - 1].sender === "object" &&
-                      (message.sender as any)._id !==
-                        (messages[index - 1].sender as any)._id);
+              )}
+            </Box>
+          ) : (
+            <>
+              {messages.map((message: Message, index: number) => {
+                const isCurrentUser =
+                  typeof message.sender === "object" &&
+                  user &&
+                  (message.sender as any)._id === user.id;
+                // Check if this is a new sender or if there's a significant time gap
+                const showSenderInfo =
+                  index === 0 ||
+                  (typeof message.sender === "object" &&
+                    typeof messages[index - 1].sender === "object" &&
+                    (message.sender as any)._id !==
+                      (messages[index - 1].sender as any)._id);
 
-                  // Check if this is the last message from this sender
-                  const isLastInGroup =
-                    index === messages.length - 1 ||
-                    (typeof message.sender === "object" &&
-                      typeof messages[index + 1]?.sender === "object" &&
-                      (message.sender as any)._id !==
-                        (messages[index + 1].sender as any)._id);
-                  return (
-                    <Box
-                      key={`${message._id}-${index}`}
-                      sx={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: isCurrentUser ? "flex-end" : "flex-start",
-                        mb: 0.7,
-                        width: "100%",
-                        px: 1,
-                      }}
-                    >
-                      {!isCurrentUser && showSenderInfo && (
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            ml: 1.5,
-                            mb: 0.5,
-                            color: "text.secondary",
-                            fontSize: "0.7rem",
-                            fontWeight: "medium",
-                          }}
-                        >
-                          {typeof message.sender === "object"
-                            ? message.sender.username
-                            : "Unknown"}
-                        </Typography>
-                      )}
-                      <Box
+                return (
+                  <Box
+                    key={message._id}
+                    sx={{
+                      alignSelf: isCurrentUser ? "flex-end" : "flex-start",
+                      maxWidth: "70%",
+                      mb: 1,
+                    }}
+                  >
+                    {showSenderInfo && !isCurrentUser && (
+                      <Typography
+                        variant="caption"
                         sx={{
-                          display: "flex",
-                          position: "relative",
-                          maxWidth: "70%",
+                          ml: 1,
+                          fontWeight: "medium",
+                          color: "text.secondary",
                         }}
                       >
-                        <Box
-                          sx={{
-                            p: 1.5,
-                            pt: 1,
-                            pb: 1,
-                            borderRadius: 2,
-                            borderTopLeftRadius:
-                              !isCurrentUser && !showSenderInfo ? 0.5 : 2,
-                            borderTopRightRadius:
-                              isCurrentUser && !showSenderInfo ? 0.5 : 2,
-                            borderBottomLeftRadius:
-                              !isCurrentUser && !isLastInGroup ? 0.5 : 2,
-                            borderBottomRightRadius:
-                              isCurrentUser && !isLastInGroup ? 0.5 : 2,
-                            backgroundColor: isCurrentUser
-                              ? "#e3f2fd" // Light blue color for sent messages
-                              : "#ffffff", // WhatsApp received message color
-                            color: "#303030",
-                            boxShadow: "0 1px 0.5px rgba(0, 0, 0, 0.13)",
-                            // position: "relative",
-                            // Chat bubble triangle for first message in a group
-                            "&::after": showSenderInfo
-                              ? {
-                                  content: '""',
-                                  position: "absolute",
-                                  top: 0,
-                                  ...(isCurrentUser
-                                    ? {
-                                        right: "-8px",
-                                        borderRight: 0,
-                                        borderTopColor: "#dcf8c6",
-                                      }
-                                    : {
-                                        left: "-8px",
-                                        borderLeft: 0,
-                                        borderTopColor: "#ffffff",
-                                      }),
+                        {typeof message.sender === "object"
+                          ? message.sender.username
+                          : "Unknown"}
+                      </Typography>
+                    )}
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: 1.5,
+                        borderRadius: 2,
+                        bgcolor: isCurrentUser
+                          ? "#dcf8c6" // Light green for current user
+                          : "#ffffff", // White for others
+                        ml: isCurrentUser ? 0 : 1,
+                        mr: isCurrentUser ? 1 : 0,
+                        position: "relative",
+                        "&::after": isCurrentUser
+                          ? {
+                              content: '""',
+                              position: "absolute",
+                              width: 0,
+                              height: 0,
+                              top: 0,
+                              right: -10,
+                              border: "10px solid transparent",
+                              borderTopColor: "#dcf8c6",
+                              borderRight: 0,
+                            }
+                          : {
+                              content: '""',
+                              position: "absolute",
+                              width: 0,
+                              height: 0,
+                              top: 0,
+                              left: -10,
+                              border: "10px solid transparent",
+                              borderTopColor: "#ffffff",
+                              borderLeft: 0,
+                            },
+                      }}
+                    >
+                      <Typography variant="body2">{message.content}</Typography>
+                      <Typography
+                        variant="caption"
+                        align="right"
+                        display="block"
+                        sx={{
+                          mt: 0.5,
+                          color: "text.secondary",
+                          fontSize: "0.7rem",
+                        }}
+                      >
+                        {formatChatTime(message.createdAt)}
+                      </Typography>
+                    </Paper>
+                  </Box>
+                );
+              })}
+            </>
+          )}
+        </Box>
 
-                                  height: 0,
-                                  border: "8px solid transparent",
-                                }
-                              : {},
-                          }}
-                        >
-                          {sendingMessage &&
-                          index === messages.length - 1 &&
-                          isCurrentUser ? (
-                            <Box
-                              sx={{
-                                display: "flex",
-                                justifyContent: "center",
-                                alignItems: "center",
-                                minHeight: 24,
-                                minWidth: 40,
-                                p: 0.5,
-                              }}
-                            >
-                              <CircularProgress
-                                size={16}
-                                thickness={5}
-                                sx={{ color: "primary.main" }}
-                              />
-                            </Box>
-                          ) : (
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                wordBreak: "break-word",
-                              }}
-                            >
-                              {message.content}
-                            </Typography>
-                          )}
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              // position: "absolute",
-
-                              fontSize: "0.65rem",
-                              color: "rgba(0, 0, 0, 0.45)",
-                              display: "flex",
-                              alignItems: "center",
-                              minWidth: "100%",
-
-                              ml: 0.5,
-                            }}
-                          >
-                            {formatChatTime(message.createdAt)}
-                            {isCurrentUser && (
-                              <Box
-                                component="span"
-                                sx={{
-                                  ml: 0.5,
-                                  display: "inline-flex",
-                                  "& svg": {
-                                    fontSize: "0.8rem",
-                                    color: "#4fc3f7",
-                                  },
-                                }}
-                              >
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  viewBox="0 0 18 18"
-                                  width="12"
-                                  height="12"
-                                >
-                                  <path
-                                    fill="currentColor"
-                                    d="M17.394 5.035l-.57-.444a.434.434 0 0 0-.609.076l-6.39 8.198a.38.38 0 0 1-.577.039l-.427-.388a.381.381 0 0 0-.578.038l-.451.576a.497.497 0 0 0 .043.645l1.575 1.51a.38.38 0 0 0 .577-.039l7.483-9.602a.436.436 0 0 0-.076-.609zm-4.892 0l-.57-.444a.434.434 0 0 0-.609.076l-6.39 8.198a.38.38 0 0 1-.577.039l-2.614-2.556a.435.435 0 0 0-.614.007l-.505.516a.435.435 0 0 0 .007.614l3.887 3.8a.38.38 0 0 0 .577-.039l7.483-9.602a.435.435 0 0 0-.075-.609z"
-                                  ></path>
-                                </svg>
-                              </Box>
-                            )}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </Box>
-                  );
-                })}
-              </>
-            )}
-          </Box>
-
-          {/* Input area */}
+        {/* Message input - Only show if room is live */}
+        {isLive ? (
           <Box
             component="form"
             onSubmit={handleSendMessage}
             sx={{
               display: "flex",
               alignItems: "center",
-              backgroundColor: "#f0f2f5", // WhatsApp input background
-              padding: "8px 12px",
-              borderTop: "1px solid rgba(0,0,0,0.05)",
+              p: 1,
+              borderTop: "1px solid rgba(0,0,0,0.1)",
             }}
           >
-            <Tooltip title="Add Emoji">
-              <IconButton
-                color="primary"
-                onClick={handleOpenEmojiMenu}
-                disabled={!isLive}
-                sx={{
-                  mr: 1,
-                  color: "#919191",
-                  "&:hover": {
-                    color: "#00a884", // WhatsApp active color
-                  },
-                }}
-              >
-                <EmojiIcon />
-              </IconButton>
-            </Tooltip>
+            <IconButton
+              size="small"
+              onClick={handleOpenEmojiMenu}
+              sx={{ mr: 1 }}
+            >
+              <EmojiIcon />
+            </IconButton>
             <TextField
               fullWidth
               placeholder="Type a message..."
-              value={messageText}
-              onChange={(e) => setMessageText(e.target.value)}
-              disabled={!isLive}
               variant="outlined"
               size="small"
-              autoComplete="off"
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: 10, // More rounded for WhatsApp style
-                  backgroundColor: "white",
-                  "&.Mui-focused": {
-                    "& .MuiOutlinedInput-notchedOutline": {
-                      borderColor: "#00a884", // WhatsApp green
-                    },
-                  },
-                },
+              value={messageText}
+              onChange={(e) => setMessageText(e.target.value)}
+              disabled={sendingMessage}
+              InputProps={{
+                endAdornment: (
+                  <IconButton
+                    onClick={handleSendMessage}
+                    disabled={!messageText.trim() || sendingMessage}
+                    size="small"
+                    color="primary"
+                    type="submit"
+                  >
+                    {sendingMessage ? (
+                      <CircularProgress size={20} />
+                    ) : (
+                      <SendIcon />
+                    )}
+                  </IconButton>
+                ),
+                sx: { borderRadius: 5 },
               }}
+              sx={{ flex: 1 }}
             />
-            <IconButton
-              type="submit"
-              color="primary"
-              disabled={!isLive || !messageText.trim()}
-              sx={{
-                ml: 1,
-                backgroundColor: "#00a884", // WhatsApp send button color
-                color: "white",
-                "&:hover": {
-                  backgroundColor: "#009670",
-                },
-                "&.Mui-disabled": {
-                  backgroundColor: "#e9edef",
-                  color: "#919191",
-                },
-              }}
-            >
-              <SendIcon />
-            </IconButton>
+          </Box>
+        ) : (
+          // For closed rooms, show a message that the room is closed
+          <Box
+            sx={{
+              p: 2,
+              borderTop: "1px solid rgba(0,0,0,0.1)",
+              bgcolor:
+                theme.palette.mode === "dark"
+                  ? "rgba(0,0,0,0.2)"
+                  : "rgba(0,0,0,0.05)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              This room is closed. Chat history is available for viewing only.
+            </Typography>
+          </Box>
+        )}
 
-            {/* Emoji Menu */}
-            <Menu
-              anchorEl={emojiMenuAnchor}
-              open={emojiMenuOpen}
-              onClose={handleCloseEmojiMenu}
-              PaperProps={{
-                sx: {
-                  mt: 1,
-                  borderRadius: 2,
-                  boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
-                },
+        <Menu
+          anchorEl={emojiMenuAnchor}
+          open={emojiMenuOpen}
+          onClose={handleCloseEmojiMenu}
+          sx={{ maxHeight: 300 }}
+        >
+          <Box sx={{ p: 1, pb: 0.5 }}>
+            <Typography
+              variant="caption"
+              sx={{ p: 1, color: "text.secondary", display: "block" }}
+            >
+              Insert in message
+            </Typography>
+            <Box
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 0.5,
+                p: 1,
+                pb: 0,
               }}
             >
-              <Box sx={{ p: 1, pb: 0.5 }}>
-                <Typography
-                  variant="caption"
-                  sx={{ p: 1, color: "text.secondary", display: "block" }}
-                >
-                  Insert in message
-                </Typography>
-                <Box
+              {["😊", "👍", "❤️", "🎉", "😂", "🤔", "👏", "🙏", "🔥"].map(
+                (emoji) => (
+                  <Chip
+                    key={emoji}
+                    label={emoji}
+                    onClick={() => handleInsertEmoji(emoji)}
+                    sx={{
+                      fontSize: "1.2rem",
+                      height: 32,
+                      cursor: "pointer",
+                      "&:hover": {
+                        bgcolor: "rgba(0,0,0,0.05)",
+                      },
+                    }}
+                  />
+                )
+              )}
+            </Box>
+          </Box>
+          <Divider sx={{ my: 1 }} />
+          <Box sx={{ p: 1, pt: 0 }}>
+            <Typography
+              variant="caption"
+              sx={{ p: 1, color: "text.secondary", display: "block" }}
+            >
+              Send as reaction
+            </Typography>
+            <Box sx={{ display: "flex", flexDirection: "column" }}>
+              {commonEmojis.map(({ emoji, label, icon }) => (
+                <MenuItem
+                  key={emoji}
+                  onClick={() => handleSelectEmoji(emoji)}
                   sx={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 0.5,
-                    p: 1,
-                    pb: 0,
+                    py: 1,
+                    borderRadius: 1,
+                    my: 0.2,
+                    gap: 1,
                   }}
                 >
-                  {["😊", "👍", "❤️", "🎉", "😂", "🤔", "👏", "🙏", "🔥"].map(
-                    (emoji) => (
-                      <Chip
-                        key={emoji}
-                        label={emoji}
-                        onClick={() => handleInsertEmoji(emoji)}
-                        sx={{
-                          fontSize: "1.2rem",
-                          height: 32,
-                          cursor: "pointer",
-                          "&:hover": {
-                            bgcolor: "rgba(0,0,0,0.05)",
-                          },
-                        }}
-                      />
-                    )
-                  )}
-                </Box>
-              </Box>
-              <Divider sx={{ my: 1 }} />
-              <Box sx={{ p: 1, pt: 0 }}>
-                <Typography
-                  variant="caption"
-                  sx={{ p: 1, color: "text.secondary", display: "block" }}
-                >
-                  Send as reaction
-                </Typography>
-                <Box sx={{ display: "flex", flexDirection: "column" }}>
-                  {commonEmojis.map(({ emoji, label, icon }) => (
-                    <MenuItem
-                      key={emoji}
-                      onClick={() => handleSelectEmoji(emoji)}
-                      sx={{
-                        py: 1,
-                        borderRadius: 1,
-                        my: 0.2,
-                        gap: 1,
-                      }}
-                    >
-                      <Box sx={{ fontSize: "1.2rem", mr: 1 }}>{emoji}</Box>
-                      {icon}
-                      <Typography variant="body2">{label}</Typography>
-                    </MenuItem>
-                  ))}
-                </Box>
-              </Box>
-            </Menu>
+                  <Box sx={{ fontSize: "1.2rem", mr: 1 }}>{emoji}</Box>
+                  {icon}
+                  <Typography variant="body2">{label}</Typography>
+                </MenuItem>
+              ))}
+            </Box>
           </Box>
-        </Paper>
-      )}
+        </Menu>
+      </Paper>
     </Box>
   );
 };
