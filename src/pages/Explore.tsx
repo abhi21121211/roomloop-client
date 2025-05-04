@@ -52,7 +52,7 @@ const Explore = () => {
       if (!user) return false;
 
       // Check if user is the creator
-      if (typeof room.creator === "object") {
+      if (room.creator && typeof room.creator === "object") {
         // Handle the case where creator is an object that might have _id or id
         const creatorId = (room.creator as any)._id || room.creator.id;
         if (creatorId === user.id) return true;
@@ -84,6 +84,7 @@ const Explore = () => {
           // Check if you're the creator
           const isCreator =
             user &&
+            room.creator &&
             typeof room.creator === "object" &&
             (room.creator as any)._id === user.id;
 
@@ -354,7 +355,9 @@ const RoomCard = ({
     statusColors[room.status] || statusColors[RoomStatus.CLOSED];
 
   const creatorName =
-    typeof room.creator === "object" ? room.creator.username : "Unknown";
+    room.creator && typeof room.creator === "object" && room.creator.username
+      ? room.creator.username
+      : "Unknown";
 
   // Determine button text based on user status and room status
   const getButtonText = () => {
