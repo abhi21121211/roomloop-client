@@ -365,10 +365,13 @@ const RoomView: React.FC = () => {
   const isPrivate = currentRoom.roomType === RoomType.PRIVATE;
   const isCreator =
     user &&
+    currentRoom.creator &&
     typeof currentRoom.creator === "object" &&
     (currentRoom.creator as any)._id === user.id;
   const creatorName =
-    typeof currentRoom.creator === "object"
+    currentRoom.creator &&
+    typeof currentRoom.creator === "object" &&
+    currentRoom.creator.username
       ? currentRoom.creator.username
       : "Unknown Host";
   // Only show invite button if it's a private room and user is the creator
@@ -712,7 +715,7 @@ const RoomView: React.FC = () => {
                 {currentRoom.participants.length > 0 ? (
                   currentRoom.participants.map((participant, index) => {
                     const username =
-                      typeof participant === "object"
+                      typeof participant === "object" && participant
                         ? participant.username
                         : "Unknown";
                     const isRoomCreator =
@@ -814,7 +817,7 @@ const RoomView: React.FC = () => {
                   <List sx={{ overflow: "auto", maxHeight: 150 }}>
                     {currentRoom.invitedUsers.map((invitedUser, index) => {
                       const username =
-                        typeof invitedUser === "object"
+                        typeof invitedUser === "object" && invitedUser
                           ? invitedUser.username
                           : "Unknown";
                       return (
@@ -1164,13 +1167,16 @@ const RoomView: React.FC = () => {
               {messages.map((message: Message, index: number) => {
                 const isCurrentUser =
                   typeof message.sender === "object" &&
+                  message.sender &&
                   user &&
                   (message.sender as any)._id === user.id;
                 // Check if this is a new sender or if there's a significant time gap
                 const showSenderInfo =
                   index === 0 ||
                   (typeof message.sender === "object" &&
+                    message.sender &&
                     typeof messages[index - 1].sender === "object" &&
+                    messages[index - 1].sender &&
                     (message.sender as any)._id !==
                       (messages[index - 1].sender as any)._id);
 
@@ -1192,7 +1198,7 @@ const RoomView: React.FC = () => {
                           color: "text.secondary",
                         }}
                       >
-                        {typeof message.sender === "object"
+                        {typeof message.sender === "object" && message.sender
                           ? message.sender.username
                           : "Unknown"}
                       </Typography>
