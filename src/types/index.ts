@@ -3,9 +3,12 @@ export interface User {
   id: string;
   username: string;
   email: string;
+  bio?: string;
+  avatar?: string;
   createdRooms?: string[];
   joinedRooms?: string[];
   invitedToRooms?: string[];
+  createdAt?: string | Date;
 }
 
 export interface AuthState {
@@ -54,6 +57,7 @@ export interface RoomState {
     invites: Room[];
   };
   publicRooms: Room[];
+  userRooms: Room[];
   currentRoom: Room | null;
   loading: boolean;
   error: string | null;

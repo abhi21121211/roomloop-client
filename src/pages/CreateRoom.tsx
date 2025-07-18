@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from "react";
 import {
   Box,
+  Container,
   Typography,
+  Grid,
   TextField,
   Button,
-  Paper,
   FormControl,
   InputLabel,
   Select,
@@ -13,396 +13,391 @@ import {
   Chip,
   OutlinedInput,
   SelectChangeEvent,
-  Grid,
+  alpha,
   useTheme as useMuiTheme,
-  Stack,
 } from "@mui/material";
-// Temporarily comment out date picker imports
-// import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
-// import { LocalizationProvider, DateTimePicker } from "@mui/x-date-pickers";
+import { useNavigate } from "react-router-dom";
 import { useRoom } from "../contexts/RoomContext";
-import { CreateRoomFormData, RoomType } from "../types";
+import { RoomType } from "../types";
+import ErrorMessage from "../components/common/ErrorMessage";
 import StyledCard from "../components/common/StyledCard";
 import StyledTextField from "../components/common/StyledTextField";
 import StyledButton from "../components/common/StyledButton";
 
-// Available tags for rooms
-const availableTags = [
-  "Technology",
-  "Business",
-  "Education",
-  "Entertainment",
-  "Gaming",
-  "Health",
-  "Music",
-  "Science",
-  "Sports",
-  "Travel",
-  "Art",
-  "Food",
-  "Politics",
-  "Books",
-  "Movies",
-];
-
-const CreateRoom = () => {
-  const navigate = useNavigate();
-  const { createRoom } = useRoom();
-  const theme = useMuiTheme();
-
-  // Set default start and end times (30 min and 90 min from now)
-  const getDefaultStartTime = () => {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() + 30);
-    return now;
-  };
-
-  const getDefaultEndTime = () => {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() + 90);
-    return now;
-  };
-
-  const [roomData, setRoomData] = useState<CreateRoomFormData>({
+const CreateRoom: React.FC = () => {
+  const [formData, setFormData] = useState({
     title: "",
     description: "",
     roomType: RoomType.PUBLIC,
-    startTime: getDefaultStartTime(),
-    endTime: getDefaultEndTime(),
-    maxParticipants: 10,
+    startTime: "",
+    endTime: "",
     tags: [] as string[],
   });
+  const [formErrors, setFormErrors] = useState({
+    title: "",
+    description: "",
+    startTime: "",
+    endTime: "",
+  });
+  const [tagInput, setTagInput] = useState("");
+  const { createRoom, loading, error } = useRoom();
+  const navigate = useNavigate();
+  const theme = useMuiTheme();
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  // Refresh default times when component mounts
-  useEffect(() => {
-    setRoomData((prev) => ({
-      ...prev,
-      startTime: getDefaultStartTime(),
-      endTime: getDefaultEndTime(),
-    }));
-  }, []);
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setRoomData((prev) => ({ ...prev, [name]: value }));
+    setFormData({ ...formData, [name]: value });
+    setFormErrors({ ...formErrors, [name]: "" });
   };
 
-  const handleTagChange = (event: SelectChangeEvent<string[]>) => {
-    const { value } = event.target;
-    setRoomData((prev) => ({
-      ...prev,
-      tags: typeof value === "string" ? value.split(",") : value,
-    }));
+  const handleSelectChange = (e: SelectChangeEvent) => {
+    setFormData({ ...formData, roomType: e.target.value as RoomType });
   };
 
-  const handleRoomTypeChange = (event: SelectChangeEvent) => {
-    setRoomData((prev) => ({
-      ...prev,
-      roomType: event.target.value as RoomType,
-    }));
+  const handleTagInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTagInput(e.target.value);
   };
 
-  const handleCapacityChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const maxParticipants = parseInt(event.target.value);
-    if (!isNaN(maxParticipants) && maxParticipants > 0) {
-      setRoomData((prev) => ({ ...prev, maxParticipants }));
+  const handleAddTag = () => {
+    if (tagInput.trim() && !formData.tags.includes(tagInput.trim())) {
+      setFormData({
+        ...formData,
+        tags: [...formData.tags, tagInput.trim()],
+      });
+      setTagInput("");
     }
   };
 
-  // Handle start time changes
-  const handleStartTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newDateTimeStr = e.target.value;
-    if (newDateTimeStr) {
-      try {
-        const newDate = new Date(newDateTimeStr);
+  const handleRemoveTag = (tagToRemove: string) => {
+    setFormData({
+      ...formData,
+      tags: formData.tags.filter((tag) => tag !== tagToRemove),
+    });
+  };
 
-        // Validate the date is not in the past
-        if (newDate.getTime() < new Date().getTime()) {
-          setError("Start time cannot be in the past");
-          return;
-        }
+  const validateForm = () => {
+    let valid = true;
+    const newErrors = { ...formErrors };
 
-        // Clear any previous errors
-        if (error.includes("time")) {
-          setError("");
-        }
+    if (!formData.title.trim()) {
+      newErrors.title = "Title is required";
+      valid = false;
+    }
 
-        setRoomData((prev) => ({
-          ...prev,
-          startTime: newDate,
-          // If end time is before the new start time, adjust it
-          endTime:
-            prev.endTime < newDate
-              ? new Date(newDate.getTime() + 60 * 60000)
-              : prev.endTime,
-        }));
-      } catch (err) {
-        setError("Invalid date format");
+    if (!formData.description.trim()) {
+      newErrors.description = "Description is required";
+      valid = false;
+    }
+
+    if (!formData.startTime) {
+      newErrors.startTime = "Start time is required";
+      valid = false;
+    }
+
+    if (!formData.endTime) {
+      newErrors.endTime = "End time is required";
+      valid = false;
+    }
+
+    if (formData.startTime && formData.endTime) {
+      const start = new Date(formData.startTime);
+      const end = new Date(formData.endTime);
+      if (start >= end) {
+        newErrors.endTime = "End time must be after start time";
+        valid = false;
       }
     }
-  };
 
-  // Handle end time changes
-  const handleEndTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newDateTimeStr = e.target.value;
-    if (newDateTimeStr) {
-      try {
-        const newDate = new Date(newDateTimeStr);
-
-        // Validate the end time is after the start time
-        if (newDate <= roomData.startTime) {
-          setError("End time must be after start time");
-          return;
-        }
-
-        // Clear any previous errors
-        if (error.includes("time")) {
-          setError("");
-        }
-
-        setRoomData((prev) => ({ ...prev, endTime: newDate }));
-      } catch (err) {
-        setError("Invalid date format");
-      }
-    }
+    setFormErrors(newErrors);
+    return valid;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Form validation
-    if (!roomData.title.trim()) {
-      setError("Room title is required");
-      return;
-    }
-
-    if (!roomData.description.trim()) {
-      setError("Description is required");
-      return;
-    }
-
-    // Validate times again
-    const now = new Date();
-    if (roomData.startTime < now) {
-      setError("Start time cannot be in the past");
-      return;
-    }
-
-    if (roomData.endTime <= roomData.startTime) {
-      setError("End time must be after start time");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
+    if (!validateForm()) return;
 
     try {
+      // Convert string dates to Date objects
+      const roomData = {
+        ...formData,
+        startTime: new Date(formData.startTime),
+        endTime: new Date(formData.endTime),
+      };
+
       await createRoom(roomData);
       navigate("/dashboard");
-    } catch (err: any) {
-      setError(err.message || "Failed to create room. Please try again.");
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      // Error is handled by the room context
     }
-  };
-
-  // Format date for the datetime-local input
-  const formatDateForInput = (date: Date): string => {
-    // Format: YYYY-MM-DDThh:mm
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
   };
 
   return (
-    <Grid container justifyContent="center">
-      <Grid item xs={12} md={8} lg={6}>
-        <StyledCard sx={{ p: 0, mt: 4 }}>
-          <Box
+    <Box
+      sx={{
+        minHeight: "100vh",
+        background: `linear-gradient(135deg, ${alpha(
+          theme.palette.primary.main,
+          0.05
+        )} 0%, ${alpha(theme.palette.secondary.main, 0.05)} 100%)`,
+        py: 2,
+      }}
+    >
+      <Container component="main" maxWidth="md">
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
+          <StyledCard
             sx={{
-              p: 3,
-              borderBottom: `1px solid ${
-                theme.palette.mode === "dark"
-                  ? "rgba(255,255,255,0.1)"
-                  : "rgba(0,0,0,0.05)"
-              }`,
-              backgroundColor:
-                theme.palette.mode === "dark"
-                  ? "rgba(18,18,18,0.8)"
-                  : "rgba(245,245,245,0.5)",
+              width: "100%",
+              background: `linear-gradient(145deg, ${
+                theme.palette.background.paper
+              } 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+              boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.1)}`,
+              backdropFilter: "blur(10px)",
+              p: 4,
             }}
           >
             <Typography
-              variant="h4"
               component="h1"
-              fontWeight="bold"
+              variant="h3"
               sx={{
-                backgroundImage:
-                  theme.palette.mode === "dark"
-                    ? "linear-gradient(45deg, #7986cb 30%, #5c6bc0 90%)"
-                    : "linear-gradient(45deg, #3f51b5 30%, #303f9f 90%)",
+                fontWeight: 700,
+                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
                 backgroundClip: "text",
                 WebkitBackgroundClip: "text",
-                color: "transparent",
+                WebkitTextFillColor: "transparent",
+                textShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                textAlign: "center",
+                mb: 3,
               }}
             >
-              Create a New Room
+              🎉 Create New Room
             </Typography>
-          </Box>
 
-          <Box sx={{ p: 3 }}>
-            {error && (
-              <Typography color="error" sx={{ mb: 2, fontWeight: 500 }}>
-                {error}
-              </Typography>
-            )}
+            <Typography
+              variant="body1"
+              color="text.secondary"
+              sx={{ mb: 4, textAlign: "center" }}
+            >
+              Set up your virtual event and start connecting with people
+            </Typography>
 
-            <Box component="form" onSubmit={handleSubmit} noValidate>
-              <Stack spacing={2}>
-                <StyledTextField
-                  required
-                  fullWidth
-                  id="title"
-                  label="Room Title"
-                  name="title"
-                  autoFocus
-                  value={roomData.title}
-                  onChange={handleChange}
-                  placeholder="Enter an engaging title for your room"
-                />
+            <ErrorMessage message={error} />
 
-                <StyledTextField
-                  required
-                  fullWidth
-                  id="description"
-                  label="Description"
-                  name="description"
-                  multiline
-                  rows={4}
-                  value={roomData.description}
-                  onChange={handleChange}
-                  placeholder="Describe what this room is about and what participants can expect"
-                />
+            <Box
+              component="form"
+              onSubmit={handleSubmit}
+              sx={{ width: "100%" }}
+            >
+              <Grid container spacing={3}>
+                <Grid item xs={12}>
+                  <StyledTextField
+                    required
+                    fullWidth
+                    label="Room Title"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleChange}
+                    error={!!formErrors.title}
+                    helperText={formErrors.title}
+                    placeholder="Enter an engaging title for your room..."
+                  />
+                </Grid>
 
-                <FormControl fullWidth>
-                  <InputLabel id="roomType-label">Room Type</InputLabel>
-                  <Select
-                    labelId="roomType-label"
-                    id="roomType"
-                    value={roomData.roomType}
-                    label="Room Type"
-                    onChange={handleRoomTypeChange}
-                  >
-                    <MenuItem value={RoomType.PUBLIC}>
-                      Public (Anyone can join)
-                    </MenuItem>
-                    <MenuItem value={RoomType.PRIVATE}>
-                      Private (Invite only)
-                    </MenuItem>
-                  </Select>
-                </FormControl>
+                <Grid item xs={12}>
+                  <StyledTextField
+                    required
+                    fullWidth
+                    multiline
+                    rows={4}
+                    label="Description"
+                    name="description"
+                    value={formData.description}
+                    onChange={handleChange}
+                    error={!!formErrors.description}
+                    helperText={formErrors.description}
+                    placeholder="Describe what your room is about..."
+                  />
+                </Grid>
 
-                <StyledTextField
-                  required
-                  fullWidth
-                  id="startTime"
-                  label="Start Time"
-                  name="startTime"
-                  type="datetime-local"
-                  value={formatDateForInput(roomData.startTime)}
-                  onChange={handleStartTimeChange}
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
-                  helperText="When will this room start"
-                />
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth>
+                    <InputLabel>Room Type</InputLabel>
+                    <Select
+                      value={formData.roomType}
+                      label="Room Type"
+                      onChange={handleSelectChange}
+                      sx={{
+                        borderRadius: 3,
+                        "& .MuiOutlinedInput-notchedOutline": {
+                          borderColor: alpha(theme.palette.primary.main, 0.2),
+                        },
+                        "&:hover .MuiOutlinedInput-notchedOutline": {
+                          borderColor: alpha(theme.palette.primary.main, 0.4),
+                        },
+                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                          borderColor: theme.palette.primary.main,
+                        },
+                      }}
+                    >
+                      <MenuItem value={RoomType.PUBLIC}>🌍 Public</MenuItem>
+                      <MenuItem value={RoomType.PRIVATE}>🔒 Private</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
 
-                <StyledTextField
-                  required
-                  fullWidth
-                  id="endTime"
-                  label="End Time"
-                  name="endTime"
-                  type="datetime-local"
-                  value={formatDateForInput(roomData.endTime)}
-                  onChange={handleEndTimeChange}
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
-                  helperText="When will this room end"
-                />
+                <Grid item xs={12} sm={6}>
+                  <StyledTextField
+                    required
+                    fullWidth
+                    label="Start Time"
+                    name="startTime"
+                    type="datetime-local"
+                    value={formData.startTime}
+                    onChange={handleChange}
+                    error={!!formErrors.startTime}
+                    helperText={formErrors.startTime}
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
+                  />
+                </Grid>
 
-                <StyledTextField
-                  required
-                  fullWidth
-                  id="maxParticipants"
-                  label="Max Participants"
-                  name="maxParticipants"
-                  type="number"
-                  InputProps={{ inputProps: { min: 1, max: 100 } }}
-                  value={roomData.maxParticipants}
-                  onChange={handleCapacityChange}
-                  helperText="How many people can join this room (max 100)"
-                />
+                <Grid item xs={12} sm={6}>
+                  <StyledTextField
+                    required
+                    fullWidth
+                    label="End Time"
+                    name="endTime"
+                    type="datetime-local"
+                    value={formData.endTime}
+                    onChange={handleChange}
+                    error={!!formErrors.endTime}
+                    helperText={formErrors.endTime}
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
+                  />
+                </Grid>
 
-                <FormControl fullWidth>
-                  <InputLabel id="tags-label">Tags</InputLabel>
-                  <Select
-                    labelId="tags-label"
-                    id="tags"
-                    multiple
-                    value={roomData.tags}
-                    onChange={handleTagChange}
-                    input={
-                      <OutlinedInput id="select-multiple-chip" label="Tags" />
-                    }
-                    renderValue={(selected) => (
-                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                        {selected.map((value) => (
-                          <Chip
-                            key={value}
-                            label={value}
-                            sx={{
-                              bgcolor: (alpha) => theme.palette.primary.main,
-                              color: theme.palette.primary.contrastText,
-                            }}
-                          />
-                        ))}
-                      </Box>
-                    )}
-                  >
-                    {availableTags.map((tag) => (
-                      <MenuItem key={tag} value={tag}>
-                        {tag}
-                      </MenuItem>
+                <Grid item xs={12} sm={6}>
+                  <StyledTextField
+                    fullWidth
+                    label="Add Tags"
+                    value={tagInput}
+                    onChange={handleTagInputChange}
+                    placeholder="Type a tag and press Enter..."
+                    onKeyPress={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddTag();
+                      }
+                    }}
+                    InputProps={{
+                      endAdornment: (
+                        <Button
+                          onClick={handleAddTag}
+                          disabled={!tagInput.trim()}
+                          sx={{
+                            minWidth: "auto",
+                            px: 2,
+                            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                            color: "white",
+                            "&:hover": {
+                              background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`,
+                            },
+                          }}
+                        >
+                          Add
+                        </Button>
+                      ),
+                    }}
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                    {formData.tags.map((tag, index) => (
+                      <Chip
+                        key={index}
+                        label={tag}
+                        onDelete={() => handleRemoveTag(tag)}
+                        sx={{
+                          background: `linear-gradient(135deg, ${alpha(
+                            theme.palette.primary.main,
+                            0.1
+                          )} 0%, ${alpha(
+                            theme.palette.secondary.main,
+                            0.1
+                          )} 100%)`,
+                          border: `1px solid ${alpha(
+                            theme.palette.primary.main,
+                            0.2
+                          )}`,
+                          "& .MuiChip-deleteIcon": {
+                            color: theme.palette.primary.main,
+                          },
+                        }}
+                      />
                     ))}
-                  </Select>
-                </FormControl>
+                  </Box>
+                </Grid>
+              </Grid>
 
+              <Box
+                sx={{
+                  mt: 4,
+                  display: "flex",
+                  gap: 2,
+                  justifyContent: "center",
+                }}
+              >
+                <StyledButton
+                  type="button"
+                  variant="outlined"
+                  onClick={() => navigate("/dashboard")}
+                  sx={{
+                    px: 4,
+                    py: 1.5,
+                    borderRadius: 3,
+                    fontWeight: 600,
+                    borderWidth: 2,
+                  }}
+                >
+                  Cancel
+                </StyledButton>
                 <StyledButton
                   type="submit"
-                  fullWidth
                   variant="contained"
-                  sx={{ mt: 2 }}
                   disabled={loading}
+                  sx={{
+                    px: 4,
+                    py: 1.5,
+                    borderRadius: 3,
+                    fontWeight: 600,
+                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                    boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
+                    transition: "all 0.3s ease",
+                    "&:hover": {
+                      transform: "translateY(-2px)",
+                      boxShadow: "0 8px 25px rgba(0,0,0,0.2)",
+                    },
+                  }}
                 >
-                  {loading ? "Creating..." : "Create Room"}
+                  {loading ? "Creating..." : "🚀 Create Room"}
                 </StyledButton>
-              </Stack>
+              </Box>
             </Box>
-          </Box>
-        </StyledCard>
-      </Grid>
-    </Grid>
+          </StyledCard>
+        </Box>
+      </Container>
+    </Box>
   );
 };
 

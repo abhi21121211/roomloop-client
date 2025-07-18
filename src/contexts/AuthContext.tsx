@@ -13,6 +13,11 @@ interface AuthContextType extends AuthState {
   register: (formData: RegisterFormData) => Promise<void>;
   logout: () => void;
   clearError: () => void;
+  updateProfile: (profileData: {
+    username: string;
+    email: string;
+    bio?: string;
+  }) => Promise<void>;
 }
 
 const initialState: AuthState = {
@@ -141,6 +146,34 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     setState((prev) => ({ ...prev, error: null }));
   };
 
+  // Update profile function
+  const updateProfile = async (profileData: {
+    username: string;
+    email: string;
+    bio?: string;
+  }) => {
+    try {
+      setState((prev) => ({ ...prev, loading: true, error: null }));
+
+      const response = await authAPI.updateProfile(profileData);
+      const updatedUser = response.data.user;
+
+      setState((prev) => ({
+        ...prev,
+        user: updatedUser,
+        loading: false,
+        error: null,
+      }));
+    } catch (error: any) {
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        error: error.response?.data?.message || "Failed to update profile",
+      }));
+      throw error;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -149,6 +182,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         register,
         logout,
         clearError,
+        updateProfile,
       }}
     >
       {children}

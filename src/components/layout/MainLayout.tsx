@@ -14,6 +14,7 @@ import {
   Divider,
   Container,
   Button,
+  alpha,
 } from "@mui/material";
 import {
   Menu as MenuIcon,
@@ -53,38 +54,42 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     <div>
       <Toolbar
         sx={{
-          backgroundColor: (theme) =>
-            theme.palette.mode === "dark"
-              ? "rgba(18, 18, 18, 0.9)"
-              : "rgba(245, 245, 245, 0.9)",
+          background: (theme) =>
+            `linear-gradient(135deg, ${alpha(
+              theme.palette.primary.main,
+              0.1
+            )} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`,
+          borderBottom: (theme) =>
+            `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+          p: 3,
         }}
       >
         <Typography
-          variant="h6"
+          variant="h5"
           noWrap
           component="div"
           sx={{
-            color: (theme) =>
-              theme.palette.mode === "dark"
-                ? theme.palette.common.white
-                : theme.palette.common.black,
+            fontWeight: 700,
+            background: (theme) =>
+              `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+            backgroundClip: "text",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            textShadow: "0 2px 4px rgba(0,0,0,0.1)",
           }}
         >
-          RoomLoop
+          🚀 RoomLoop
         </Typography>
       </Toolbar>
       <Divider />
       <List
         sx={{
-          backgroundColor: (theme) =>
-            theme.palette.mode === "dark"
-              ? "rgba(18, 18, 18, 0.8)"
-              : "rgba(255, 255, 255, 0.9)",
-          color: (theme) =>
-            theme.palette.mode === "dark"
-              ? theme.palette.common.white
-              : theme.palette.common.black,
+          background: (theme) =>
+            `linear-gradient(145deg, ${
+              theme.palette.background.paper
+            } 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
           height: "100%",
+          p: 2,
         }}
       >
         {isAuthenticated && (
@@ -95,19 +100,43 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               sx={{
                 color: "inherit",
                 textDecoration: "none",
+                borderRadius: 3,
+                mb: 1.5,
+                p: 2,
+                transition: "all 0.3s ease",
+                background: (theme) =>
+                  `linear-gradient(145deg, ${alpha(
+                    theme.palette.background.paper,
+                    0.8
+                  )} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
+                border: (theme) =>
+                  `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+                boxShadow: (theme) =>
+                  `0 2px 8px ${alpha(theme.palette.common.black, 0.05)}`,
+                "&:hover": {
+                  transform: "translateX(4px)",
+                  background: (theme) =>
+                    `linear-gradient(145deg, ${alpha(
+                      theme.palette.primary.main,
+                      0.1
+                    )} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`,
+                  boxShadow: (theme) =>
+                    `0 4px 12px ${alpha(theme.palette.common.black, 0.1)}`,
+                },
               }}
             >
               <ListItemIcon
                 sx={{
-                  color: (theme) =>
-                    theme.palette.mode === "dark"
-                      ? theme.palette.primary.light
-                      : theme.palette.primary.main,
+                  color: (theme) => theme.palette.primary.main,
+                  mr: 2,
                 }}
               >
                 <DashboardIcon />
               </ListItemIcon>
-              <ListItemText primary="Dashboard" />
+              <ListItemText
+                primary="📊 Dashboard"
+                primaryTypographyProps={{ fontWeight: 600, fontSize: "1rem" }}
+              />
             </ListItem>
             <ListItem
               component={Link}
@@ -115,19 +144,43 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               sx={{
                 color: "inherit",
                 textDecoration: "none",
+                borderRadius: 3,
+                mb: 1.5,
+                p: 2,
+                transition: "all 0.3s ease",
+                background: (theme) =>
+                  `linear-gradient(145deg, ${alpha(
+                    theme.palette.background.paper,
+                    0.8
+                  )} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
+                border: (theme) =>
+                  `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+                boxShadow: (theme) =>
+                  `0 2px 8px ${alpha(theme.palette.common.black, 0.05)}`,
+                "&:hover": {
+                  transform: "translateX(4px)",
+                  background: (theme) =>
+                    `linear-gradient(145deg, ${alpha(
+                      theme.palette.primary.main,
+                      0.1
+                    )} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`,
+                  boxShadow: (theme) =>
+                    `0 4px 12px ${alpha(theme.palette.common.black, 0.1)}`,
+                },
               }}
             >
               <ListItemIcon
                 sx={{
-                  color: (theme) =>
-                    theme.palette.mode === "dark"
-                      ? theme.palette.primary.light
-                      : theme.palette.primary.main,
+                  color: (theme) => theme.palette.primary.main,
+                  mr: 2,
                 }}
               >
                 <ExploreIcon />
               </ListItemIcon>
-              <ListItemText primary="Explore Rooms" />
+              <ListItemText
+                primary="🔍 Explore Rooms"
+                primaryTypographyProps={{ fontWeight: 600, fontSize: "1rem" }}
+              />
             </ListItem>
             <ListItem
               component={Link}
@@ -135,64 +188,139 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               sx={{
                 color: "inherit",
                 textDecoration: "none",
+                borderRadius: 3,
+                mb: 1.5,
+                p: 2,
+                transition: "all 0.3s ease",
+                background: (theme) =>
+                  `linear-gradient(145deg, ${alpha(
+                    theme.palette.background.paper,
+                    0.8
+                  )} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
+                border: (theme) =>
+                  `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+                boxShadow: (theme) =>
+                  `0 2px 8px ${alpha(theme.palette.common.black, 0.05)}`,
+                "&:hover": {
+                  transform: "translateX(4px)",
+                  background: (theme) =>
+                    `linear-gradient(145deg, ${alpha(
+                      theme.palette.primary.main,
+                      0.1
+                    )} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`,
+                  boxShadow: (theme) =>
+                    `0 4px 12px ${alpha(theme.palette.common.black, 0.1)}`,
+                },
               }}
             >
               <ListItemIcon
                 sx={{
-                  color: (theme) =>
-                    theme.palette.mode === "dark"
-                      ? theme.palette.primary.light
-                      : theme.palette.primary.main,
+                  color: (theme) => theme.palette.primary.main,
+                  mr: 2,
                 }}
               >
                 <AddCircleIcon />
               </ListItemIcon>
-              <ListItemText primary="Create Room" />
+              <ListItemText
+                primary="➕ Create Room"
+                primaryTypographyProps={{ fontWeight: 600, fontSize: "1rem" }}
+              />
             </ListItem>
-            <Divider />
+            <Divider
+              sx={{
+                my: 2,
+                borderColor: (theme) => alpha(theme.palette.primary.main, 0.2),
+              }}
+            />
             <ListItem
               component={Link}
               to="/profile"
               sx={{
                 color: "inherit",
                 textDecoration: "none",
-              }}
-            >
-              <ListItemIcon
-                sx={{
-                  color: (theme) =>
-                    theme.palette.mode === "dark"
-                      ? theme.palette.primary.light
-                      : theme.palette.primary.main,
-                }}
-              >
-                <AccountCircleIcon />
-              </ListItemIcon>
-              <ListItemText primary="Profile" />
-            </ListItem>
-            <ListItem
-              onClick={handleLogout}
-              sx={{
-                cursor: "pointer",
+                borderRadius: 3,
+                mb: 1.5,
+                p: 2,
+                transition: "all 0.3s ease",
+                background: (theme) =>
+                  `linear-gradient(145deg, ${alpha(
+                    theme.palette.background.paper,
+                    0.8
+                  )} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
+                border: (theme) =>
+                  `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+                boxShadow: (theme) =>
+                  `0 2px 8px ${alpha(theme.palette.common.black, 0.05)}`,
                 "&:hover": {
-                  backgroundColor: (theme) =>
-                    theme.palette.mode === "dark"
-                      ? "rgba(255, 255, 255, 0.05)"
-                      : "rgba(0, 0, 0, 0.05)",
+                  transform: "translateX(4px)",
+                  background: (theme) =>
+                    `linear-gradient(145deg, ${alpha(
+                      theme.palette.primary.main,
+                      0.1
+                    )} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`,
+                  boxShadow: (theme) =>
+                    `0 4px 12px ${alpha(theme.palette.common.black, 0.1)}`,
                 },
               }}
             >
               <ListItemIcon
                 sx={{
-                  color: (theme) =>
-                    theme.palette.mode === "dark"
-                      ? theme.palette.error.light
-                      : theme.palette.error.main,
+                  color: (theme) => theme.palette.primary.main,
+                  mr: 2,
+                }}
+              >
+                <AccountCircleIcon />
+              </ListItemIcon>
+              <ListItemText
+                primary="👤 Profile"
+                primaryTypographyProps={{ fontWeight: 600, fontSize: "1rem" }}
+              />
+            </ListItem>
+            <ListItem
+              onClick={handleLogout}
+              sx={{
+                cursor: "pointer",
+                borderRadius: 3,
+                mb: 1.5,
+                p: 2,
+                transition: "all 0.3s ease",
+                background: (theme) =>
+                  `linear-gradient(145deg, ${alpha(
+                    theme.palette.error.main,
+                    0.1
+                  )} 0%, ${alpha(theme.palette.error.light, 0.1)} 100%)`,
+                border: (theme) =>
+                  `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
+                boxShadow: (theme) =>
+                  `0 2px 8px ${alpha(theme.palette.common.black, 0.05)}`,
+                "&:hover": {
+                  transform: "translateX(4px)",
+                  background: (theme) =>
+                    `linear-gradient(145deg, ${alpha(
+                      theme.palette.error.main,
+                      0.2
+                    )} 0%, ${alpha(theme.palette.error.light, 0.2)} 100%)`,
+                  boxShadow: (theme) =>
+                    `0 4px 12px ${alpha(theme.palette.error.main, 0.2)}`,
+                },
+              }}
+            >
+              <ListItemIcon
+                sx={{
+                  color: (theme) => theme.palette.error.main,
+                  mr: 2,
                 }}
               >
                 <LogoutIcon />
               </ListItemIcon>
-              <ListItemText primary="Logout" />
+              <ListItemText
+                primary="🚪 Logout"
+                primaryTypographyProps={{
+                  fontWeight: 600,
+                  fontSize: "1rem",
+                  color: (theme) => theme.palette.error.main,
+                }}
+              />
             </ListItem>
           </>
         )}
@@ -343,15 +471,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               width: drawerWidth,
               borderRadius: 0,
               borderRight: (theme) =>
-                `1px solid ${
-                  theme.palette.mode === "dark"
-                    ? "rgba(255,255,255,0.1)"
-                    : "rgba(0,0,0,0.1)"
-                }`,
-              backgroundImage: (theme) =>
-                theme.palette.mode === "dark"
-                  ? "linear-gradient(180deg, rgba(18,18,18,1) 0%, rgba(30,30,35,1) 100%)"
-                  : "linear-gradient(180deg, rgba(245,245,250,1) 0%, rgba(255,255,255,1) 100%)",
+                `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+              background: (theme) =>
+                `linear-gradient(145deg, ${
+                  theme.palette.background.paper
+                } 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
+              boxShadow: (theme) =>
+                `0 8px 32px ${alpha(theme.palette.common.black, 0.1)}`,
+              backdropFilter: "blur(10px)",
             },
           }}
         >
@@ -366,15 +493,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               width: drawerWidth,
               borderRadius: 0,
               borderRight: (theme) =>
-                `1px solid ${
-                  theme.palette.mode === "dark"
-                    ? "rgba(255,255,255,0.1)"
-                    : "rgba(0,0,0,0.1)"
-                }`,
-              backgroundImage: (theme) =>
-                theme.palette.mode === "dark"
-                  ? "linear-gradient(180deg, rgba(18,18,18,1) 0%, rgba(30,30,35,1) 100%)"
-                  : "linear-gradient(180deg, rgba(245,245,250,1) 0%, rgba(255,255,255,1) 100%)",
+                `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+              background: (theme) =>
+                `linear-gradient(145deg, ${
+                  theme.palette.background.paper
+                } 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
+              boxShadow: (theme) =>
+                `0 8px 32px ${alpha(theme.palette.common.black, 0.1)}`,
+              backdropFilter: "blur(10px)",
             },
           }}
           open

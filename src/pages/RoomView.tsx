@@ -37,9 +37,11 @@ import {
   Celebration as CelebrationIcon,
   Info as InfoIcon,
   ErrorOutline as ErrorOutlineIcon,
+  SmartToy as AIIcon,
 } from "@mui/icons-material";
 import { useRoom } from "../contexts/RoomContext";
 import { useChat } from "../contexts/ChatContext";
+import { useAI } from "../contexts/AIContext";
 import { Message, Room, RoomStatus, RoomType } from "../types";
 import Loading from "../components/common/Loading";
 import ErrorMessage from "../components/common/ErrorMessage";
@@ -47,6 +49,7 @@ import GridItem from "../components/common/GridItem";
 import { useAuth } from "../contexts/AuthContext";
 import RoomEndAlert from "../components/common/RoomEndAlert";
 import { alpha } from "@mui/material/styles";
+import { renderTextContent } from "../utils/textProcessing";
 
 const RoomView: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
@@ -68,6 +71,7 @@ const RoomView: React.FC = () => {
     sendReaction,
   } = useChat();
   const { user } = useAuth();
+  const { sendMessage: sendAIMessage, isAvailable: aiAvailable } = useAI();
   const [messageText, setMessageText] = useState("");
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [inviteUsernames, setInviteUsernames] = useState("");
@@ -77,6 +81,7 @@ const RoomView: React.FC = () => {
   const [roomEndDialogOpen, setRoomEndDialogOpen] = useState(false);
   const [redirectCountdown, setRedirectCountdown] = useState(5);
   const [bypassRedirect, setBypassRedirect] = useState(false);
+  const [wasInLiveRoom, setWasInLiveRoom] = useState(false);
 
   // Emoji menu state
   const [emojiMenuAnchor, setEmojiMenuAnchor] = useState<null | HTMLElement>(
@@ -119,8 +124,13 @@ const RoomView: React.FC = () => {
       );
 
       if (!viewedClosedRooms.includes(roomId)) {
-        // First time viewing this closed room
-        setRoomEndDialogOpen(true);
+        // First time viewing this closed room - don't show alert, just mark as viewed
+        const updatedViewedRooms = [...viewedClosedRooms, roomId];
+        localStorage.setItem(
+          "viewedClosedRooms",
+          JSON.stringify(updatedViewedRooms)
+        );
+        setBypassRedirect(true);
       } else {
         // User has previously chosen to view this closed room
         setBypassRedirect(true);
@@ -132,14 +142,21 @@ const RoomView: React.FC = () => {
   const checkRoomEnded = useCallback(() => {
     if (!currentRoom) return false;
 
-    // Room is already in CLOSED status
-    if (currentRoom.status === RoomStatus.CLOSED) return true;
+    // For closed rooms, don't trigger the end alert - they're already closed
+    if (currentRoom.status === RoomStatus.CLOSED) return false;
 
-    // Check if current time is past the end time
+    // Check if current time is past the end time (only for live/scheduled rooms)
     const now = new Date();
     const endTime = new Date(currentRoom.endTime);
     return now > endTime;
   }, [currentRoom]);
+
+  // Track if user was in a live room
+  useEffect(() => {
+    if (currentRoom?.status === RoomStatus.LIVE) {
+      setWasInLiveRoom(true);
+    }
+  }, [currentRoom?.status]);
 
   // Handle room end and redirect
   useEffect(() => {
@@ -148,8 +165,8 @@ const RoomView: React.FC = () => {
 
     let countdownInterval: NodeJS.Timeout;
 
-    // If room has ended, show the dialog and start countdown
-    if (currentRoom && checkRoomEnded()) {
+    // If room has ended and user was in it when it was live, show the dialog and start countdown
+    if (currentRoom && checkRoomEnded() && wasInLiveRoom) {
       setRoomEndDialogOpen(true);
 
       countdownInterval = setInterval(() => {
@@ -167,7 +184,7 @@ const RoomView: React.FC = () => {
     return () => {
       if (countdownInterval) clearInterval(countdownInterval);
     };
-  }, [currentRoom, checkRoomEnded, navigate, bypassRedirect]);
+  }, [currentRoom, checkRoomEnded, navigate, bypassRedirect, wasInLiveRoom]);
 
   // Continuously check if room has ended (every 10 seconds)
   useEffect(() => {
@@ -175,14 +192,14 @@ const RoomView: React.FC = () => {
     if (bypassRedirect) return;
 
     const checkInterval = setInterval(() => {
-      if (checkRoomEnded() && !roomEndDialogOpen) {
+      if (checkRoomEnded() && !roomEndDialogOpen && wasInLiveRoom) {
         setRoomEndDialogOpen(true);
         setRedirectCountdown(5);
       }
     }, 10000); // Check every 10 seconds
 
     return () => clearInterval(checkInterval);
-  }, [checkRoomEnded, roomEndDialogOpen, bypassRedirect]);
+  }, [checkRoomEnded, roomEndDialogOpen, bypassRedirect, wasInLiveRoom]);
 
   useEffect(() => {
     // Store roomId in a local variable to avoid stale closure issues
@@ -224,17 +241,104 @@ const RoomView: React.FC = () => {
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (messageText.trim() && roomId) {
-      setSendingMessage(true);
-      sendMessage(roomId, messageText)
-        .then(() => {
+      // Check if this is an AI command
+      const isAICommand = messageText.trim().startsWith("@ai");
+
+      if (isAICommand && aiAvailable) {
+        // Handle AI command
+        setSendingMessage(true);
+        const aiQuery = messageText.trim().substring(4).trim(); // Remove '@ai ' prefix
+
+        if (aiQuery) {
+          // Send the AI command as a regular message first
+          sendMessage(roomId, messageText)
+            .then(() => {
+              setMessageText("");
+
+              // Then get AI response with better conversation history
+              const conversationHistory = messages
+                .filter((msg) => !msg.content.startsWith("🤖 **Ted**:")) // Filter out Ted's previous responses
+                .map((msg) => ({
+                  role:
+                    typeof msg.sender === "object" &&
+                    msg.sender &&
+                    (msg.sender as any)._id === user?.id
+                      ? "user"
+                      : "assistant",
+                  content: msg.content,
+                }))
+                .slice(-8); // Keep last 8 messages for context
+
+              console.log("Frontend Debug - AI Request:");
+              console.log("AI Query:", aiQuery);
+              console.log("Room ID:", roomId);
+              console.log("Conversation History:", conversationHistory);
+
+              return sendAIMessage(aiQuery, roomId, conversationHistory);
+            })
+            .then((aiResponse) => {
+              if (aiResponse.success) {
+                // Send AI response as a system message
+                const aiMessage = `🤖 **Ted**: ${aiResponse.data.response}`;
+                sendMessage(roomId, aiMessage);
+              }
+            })
+            .catch((error) => {
+              console.error("Error with AI command:", error);
+              // Send error message to chat with more specific error info
+              let errorMessage =
+                "🤖 **Ted**: Sorry, I encountered an error. Please try again.";
+
+              if (error.response?.data?.error) {
+                if (error.response.data.error.includes("participant")) {
+                  errorMessage =
+                    "🤖 **Ted**: Sorry, only participants in this room can use AI features.";
+                } else if (
+                  error.response.data.error.includes("authenticated")
+                ) {
+                  errorMessage =
+                    "🤖 **Ted**: Sorry, you need to be logged in to use AI features.";
+                } else {
+                  errorMessage = `🤖 **Ted**: ${error.response.data.error}`;
+                }
+              }
+
+              sendMessage(roomId, errorMessage);
+            })
+            .finally(() => {
+              setSendingMessage(false);
+            });
+        } else {
+          // Empty AI command
+          sendMessage(
+            roomId,
+            "🤖 **Ted**: Hi there! I'm Ted, your AI assistant. How can I help you today? 🤖"
+          );
           setMessageText("");
-        })
-        .catch((error) => {
-          console.error("Error sending message:", error);
-        })
-        .finally(() => {
           setSendingMessage(false);
-        });
+        }
+      } else if (isAICommand && !aiAvailable) {
+        // AI not available
+        sendMessage(
+          roomId,
+          "🤖 **Ted**: Sorry, I'm having some technical difficulties right now. Please try again later! 🤖"
+        );
+        setMessageText("");
+        setSendingMessage(false);
+      } else {
+        // Regular message
+        setSendingMessage(true);
+        sendMessage(roomId, messageText)
+          .then(() => {
+            setMessageText("");
+          })
+          .catch((error) => {
+            console.error("Error sending message:", error);
+          })
+          .finally(() => {
+            setSendingMessage(false);
+          });
+      }
     }
   };
 
@@ -359,6 +463,11 @@ const RoomView: React.FC = () => {
 
   if (roomLoading) return <Loading message="Loading room details..." />;
   if (!currentRoom) return <ErrorMessage message="Room not found" />;
+  if (!user) return <ErrorMessage message="Please log in to view this room" />;
+
+  // Additional safety check for room data
+  if (!currentRoom.participants) currentRoom.participants = [];
+  if (!currentRoom.invitedUsers) currentRoom.invitedUsers = [];
 
   const isLive = currentRoom.status === RoomStatus.LIVE;
   const isPast = currentRoom.status === RoomStatus.CLOSED;
@@ -385,10 +494,20 @@ const RoomView: React.FC = () => {
   // );
 
   return (
-    <Box sx={{ mb: 4 }}>
+    <Box
+      sx={{
+        mb: 4,
+        minHeight: "100vh",
+        background: `linear-gradient(135deg, ${alpha(
+          theme.palette.primary.main,
+          0.05
+        )} 0%, ${alpha(theme.palette.secondary.main, 0.05)} 100%)`,
+        py: 2,
+      }}
+    >
       {/* Room End Alert */}
       <RoomEndAlert
-        open={roomEndDialogOpen}
+        open={roomEndDialogOpen && wasInLiveRoom}
         roomTitle={currentRoom?.title || ""}
         redirectCountdown={redirectCountdown}
         onViewRoom={handleViewClosedRoom}
@@ -396,23 +515,47 @@ const RoomView: React.FC = () => {
         showViewOption={true}
       />
 
-      <Paper elevation={1} sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+      <Paper
+        elevation={0}
+        sx={{
+          p: 4,
+          mb: 3,
+          borderRadius: 4,
+          background: `linear-gradient(145deg, ${
+            theme.palette.background.paper
+          } 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+          boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.1)}`,
+          backdropFilter: "blur(10px)",
+          transition: "all 0.3s ease-in-out",
+          "&:hover": {
+            transform: "translateY(-2px)",
+            boxShadow: `0 12px 40px ${alpha(theme.palette.common.black, 0.15)}`,
+          },
+        }}
+      >
         <Box
           sx={{
-            mb: 2,
+            mb: 3,
             display: "flex",
             justifyContent: "space-between",
             alignItems: "flex-start",
           }}
         >
-          <Box>
+          <Box sx={{ flex: 1 }}>
             <Typography
-              variant="h4"
+              variant="h3"
               component="h1"
               gutterBottom
               sx={{
-                fontWeight: 600,
+                fontWeight: 700,
                 color: "text.primary",
+                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                backgroundClip: "text",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                textShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                mb: 2,
               }}
             >
               {currentRoom.title}
@@ -421,58 +564,104 @@ const RoomView: React.FC = () => {
               sx={{
                 display: "flex",
                 alignItems: "center",
-                mb: 1,
+                mb: 2,
                 flexWrap: "wrap",
-                gap: 1,
+                gap: 2,
               }}
             >
-              <Typography
-                variant="body2"
-                color="text.secondary"
+              <Box
                 sx={{
                   display: "flex",
                   alignItems: "center",
-                  mr: 1,
-                  fontWeight: "medium",
+                  p: 1.5,
+                  borderRadius: 3,
+                  background: `linear-gradient(135deg, ${alpha(
+                    theme.palette.primary.main,
+                    0.1
+                  )} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`,
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                  mr: 2,
                 }}
               >
                 <Avatar
                   sx={{
-                    width: 24,
-                    height: 24,
-                    bgcolor: "primary.main",
-                    fontSize: "0.8rem",
-                    mr: 1,
+                    width: 32,
+                    height: 32,
+                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                    fontSize: "1rem",
+                    fontWeight: 600,
+                    mr: 1.5,
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
                   }}
                 >
                   {creatorName.charAt(0).toUpperCase()}
                 </Avatar>
-                Hosted by {creatorName}
-              </Typography>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    fontWeight: 600,
+                    color: "text.primary",
+                    fontSize: "0.95rem",
+                  }}
+                >
+                  Hosted by {creatorName}
+                </Typography>
+              </Box>
               <Chip
                 label={currentRoom.status.toUpperCase()}
                 color={isLive ? "success" : isPast ? "default" : "primary"}
-                size="small"
-                sx={{ fontWeight: "medium" }}
+                size="medium"
+                sx={{
+                  fontWeight: 700,
+                  fontSize: "0.8rem",
+                  px: 2,
+                  py: 1,
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                  "& .MuiChip-label": {
+                    px: 1,
+                  },
+                }}
               />
               {isCreator && (
                 <Chip
                   label="YOU ARE HOST"
                   color="secondary"
-                  size="small"
+                  size="medium"
                   variant="outlined"
-                  sx={{ fontWeight: "medium", fontSize: "0.7rem" }}
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: "0.75rem",
+                    px: 2,
+                    py: 1,
+                    borderWidth: 2,
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                    "& .MuiChip-label": {
+                      px: 1,
+                    },
+                  }}
                 />
               )}
             </Box>
           </Box>
           <Button
-            variant="outlined"
-            color="secondary"
+            variant="contained"
+            color="primary"
             onClick={() => navigate(-1)}
-            sx={{ borderRadius: "8px" }}
+            sx={{
+              borderRadius: 3,
+              px: 3,
+              py: 1.5,
+              fontWeight: 600,
+              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+              boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
+              transition: "all 0.3s ease",
+              "&:hover": {
+                transform: "translateY(-2px)",
+                boxShadow: "0 8px 25px rgba(0,0,0,0.2)",
+              },
+            }}
           >
-            Back
+            ← Back
           </Button>
         </Box>
 
@@ -484,16 +673,34 @@ const RoomView: React.FC = () => {
               {currentRoom.description}
             </Typography>
 
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
-                Details
+            <Box sx={{ mt: 3 }}>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 700,
+                  mb: 2,
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                  backgroundClip: "text",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                }}
+              >
+                📋 Room Details
               </Typography>
               <Paper
                 elevation={0}
                 sx={{
-                  p: 2,
-                  backgroundColor: "rgba(0, 0, 0, 0.02)",
-                  borderRadius: 2,
+                  p: 3,
+                  background: `linear-gradient(145deg, ${alpha(
+                    theme.palette.background.paper,
+                    0.8
+                  )} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
+                  borderRadius: 3,
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+                  boxShadow: `0 4px 20px ${alpha(
+                    theme.palette.common.black,
+                    0.08
+                  )}`,
                 }}
               >
                 <Grid container spacing={2}>
@@ -632,7 +839,7 @@ const RoomView: React.FC = () => {
               </Box>
             )}
 
-            <Box sx={{ mt: 3, display: "flex", gap: 1 }}>
+            <Box sx={{ mt: 4, display: "flex", gap: 2, flexWrap: "wrap" }}>
               {isLive && (
                 <Button
                   variant="contained"
@@ -640,14 +847,20 @@ const RoomView: React.FC = () => {
                   startIcon={<ThumbUpIcon />}
                   onClick={handleSendReaction}
                   sx={{
-                    borderRadius: "8px",
-                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                    borderRadius: 3,
+                    px: 3,
+                    py: 1.5,
+                    fontWeight: 600,
+                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                    boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
+                    transition: "all 0.3s ease",
                     "&:hover": {
-                      boxShadow: "0 4px 8px rgba(0,0,0,0.15)",
+                      transform: "translateY(-2px)",
+                      boxShadow: "0 8px 25px rgba(0,0,0,0.2)",
                     },
                   }}
                 >
-                  React
+                  🎉 React
                 </Button>
               )}
               {showInviteButton && (
@@ -657,14 +870,20 @@ const RoomView: React.FC = () => {
                   startIcon={<PersonAddIcon />}
                   onClick={handleOpenInviteDialog}
                   sx={{
-                    borderRadius: "8px",
-                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                    borderRadius: 3,
+                    px: 3,
+                    py: 1.5,
+                    fontWeight: 600,
+                    background: `linear-gradient(135deg, ${theme.palette.secondary.main} 0%, ${theme.palette.primary.main} 100%)`,
+                    boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
+                    transition: "all 0.3s ease",
                     "&:hover": {
-                      boxShadow: "0 4px 8px rgba(0,0,0,0.15)",
+                      transform: "translateY(-2px)",
+                      boxShadow: "0 8px 25px rgba(0,0,0,0.2)",
                     },
                   }}
                 >
-                  Invite Users
+                  👥 Invite Users
                 </Button>
               )}
               <Button
@@ -712,7 +931,8 @@ const RoomView: React.FC = () => {
               <Divider sx={{ mb: 2 }} />
 
               <List sx={{ overflow: "auto", flex: 1, maxHeight: 200 }}>
-                {currentRoom.participants.length > 0 ? (
+                {currentRoom.participants &&
+                currentRoom.participants.length > 0 ? (
                   currentRoom.participants.map((participant, index) => {
                     const username =
                       typeof participant === "object" && participant
@@ -720,6 +940,7 @@ const RoomView: React.FC = () => {
                         : "Unknown";
                     const isRoomCreator =
                       typeof currentRoom.creator === "object" &&
+                      currentRoom.creator &&
                       currentRoom.creator.username === username;
                     return (
                       <ListItem
@@ -782,80 +1003,82 @@ const RoomView: React.FC = () => {
                 )}
               </List>
               {/* Show invited users for private rooms */}
-              {isPrivate && currentRoom.invitedUsers.length > 0 && (
-                <Paper
-                  elevation={2}
-                  sx={{
-                    p: 2,
-                    mt: 2,
-                    display: "flex",
-                    flexDirection: "column",
-                    borderRadius: 2,
-                    border: "1px solid rgba(0, 0, 0, 0.05)",
-                  }}
-                >
-                  <Box
+              {isPrivate &&
+                currentRoom.invitedUsers &&
+                currentRoom.invitedUsers.length > 0 && (
+                  <Paper
+                    elevation={2}
                     sx={{
+                      p: 2,
+                      mt: 2,
                       display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      mb: 1,
+                      flexDirection: "column",
+                      borderRadius: 2,
+                      border: "1px solid rgba(0, 0, 0, 0.05)",
                     }}
                   >
-                    <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
-                      Invited
-                    </Typography>
-                    <Chip
-                      label={currentRoom.invitedUsers.length}
-                      color="secondary"
-                      size="small"
-                      sx={{ borderRadius: "12px", fontWeight: "bold" }}
-                    />
-                  </Box>
-                  <Divider sx={{ mb: 2 }} />
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        mb: 1,
+                      }}
+                    >
+                      <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
+                        Invited
+                      </Typography>
+                      <Chip
+                        label={currentRoom.invitedUsers.length}
+                        color="secondary"
+                        size="small"
+                        sx={{ borderRadius: "12px", fontWeight: "bold" }}
+                      />
+                    </Box>
+                    <Divider sx={{ mb: 2 }} />
 
-                  <List sx={{ overflow: "auto", maxHeight: 150 }}>
-                    {currentRoom.invitedUsers.map((invitedUser, index) => {
-                      const username =
-                        typeof invitedUser === "object" && invitedUser
-                          ? invitedUser.username
-                          : "Unknown";
-                      return (
-                        <ListItem
-                          key={index}
-                          sx={{
-                            borderRadius: 1,
-                            mb: 0.5,
-                            backgroundColor: "rgba(0, 0, 0, 0.01)",
-                          }}
-                        >
-                          <ListItemAvatar>
-                            <Avatar sx={{ bgcolor: "grey.300" }}>
-                              {username.charAt(0).toUpperCase()}
-                            </Avatar>
-                          </ListItemAvatar>
-                          <ListItemText
-                            primary={username}
-                            secondary={
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                sx={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  fontSize: "0.7rem",
-                                }}
-                              >
-                                Awaiting response
-                              </Typography>
-                            }
-                          />
-                        </ListItem>
-                      );
-                    })}
-                  </List>
-                </Paper>
-              )}
+                    <List sx={{ overflow: "auto", maxHeight: 150 }}>
+                      {currentRoom.invitedUsers.map((invitedUser, index) => {
+                        const username =
+                          typeof invitedUser === "object" && invitedUser
+                            ? invitedUser.username
+                            : "Unknown";
+                        return (
+                          <ListItem
+                            key={index}
+                            sx={{
+                              borderRadius: 1,
+                              mb: 0.5,
+                              backgroundColor: "rgba(0, 0, 0, 0.01)",
+                            }}
+                          >
+                            <ListItemAvatar>
+                              <Avatar sx={{ bgcolor: "grey.300" }}>
+                                {username.charAt(0).toUpperCase()}
+                              </Avatar>
+                            </ListItemAvatar>
+                            <ListItemText
+                              primary={username}
+                              secondary={
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    fontSize: "0.7rem",
+                                  }}
+                                >
+                                  Awaiting response
+                                </Typography>
+                              }
+                            />
+                          </ListItem>
+                        );
+                      })}
+                    </List>
+                  </Paper>
+                )}
             </Paper>
           </GridItem>
         </Grid>
@@ -1017,12 +1240,16 @@ const RoomView: React.FC = () => {
 
       {/* Chat section - Modified to work for both live and closed rooms */}
       <Paper
-        elevation={1}
+        elevation={0}
         sx={{
           p: 0,
-          borderRadius: 2,
+          borderRadius: 4,
           overflow: "hidden",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)",
+          boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.1)}`,
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+          background: `linear-gradient(145deg, ${
+            theme.palette.background.paper
+          } 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
         }}
       >
         {/* Chat Header - Adjusted to show status for both live and closed rooms */}
@@ -1030,13 +1257,14 @@ const RoomView: React.FC = () => {
           sx={{
             display: "flex",
             alignItems: "center",
-            p: 1.5,
-            bgcolor: isLive
-              ? "primary.main"
+            p: 2.5,
+            background: isLive
+              ? `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`
               : isPast
-              ? "grey.500"
-              : "primary.main", // Different color for closed rooms
+              ? `linear-gradient(135deg, ${theme.palette.grey[500]} 0%, ${theme.palette.grey[600]} 100%)`
+              : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
             color: "white",
+            boxShadow: `0 4px 20px ${alpha(theme.palette.common.black, 0.2)}`,
           }}
         >
           <Avatar
@@ -1116,15 +1344,38 @@ const RoomView: React.FC = () => {
 
         <Box
           sx={{
-            height: 350,
+            height: 400,
             overflow: "auto",
-            py: 2,
-            px: 1,
-            bgcolor: "#e5ddd5", // WhatsApp chat background color
-            backgroundRepeat: "repeat",
+            py: 3,
+            px: 2,
+            background: `linear-gradient(135deg, ${alpha(
+              theme.palette.primary.main,
+              0.03
+            )} 0%, ${alpha(theme.palette.secondary.main, 0.03)} 100%)`,
+            backgroundImage: `radial-gradient(circle at 20% 80%, ${alpha(
+              theme.palette.primary.main,
+              0.05
+            )} 0%, transparent 50%),
+                              radial-gradient(circle at 80% 20%, ${alpha(
+                                theme.palette.secondary.main,
+                                0.05
+                              )} 0%, transparent 50%)`,
             borderRadius: 0,
             display: "flex",
             flexDirection: "column",
+            position: "relative",
+            "&::before": {
+              content: '""',
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background:
+                'url(\'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="rgba(255,255,255,0.1)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>\')',
+              opacity: 0.3,
+              pointerEvents: "none",
+            },
           }}
         >
           {messages.length === 0 ? (
@@ -1164,98 +1415,129 @@ const RoomView: React.FC = () => {
             </Box>
           ) : (
             <>
-              {messages.map((message: Message, index: number) => {
-                const isCurrentUser =
-                  typeof message.sender === "object" &&
-                  message.sender &&
-                  user &&
-                  (message.sender as any)._id === user.id;
-                // Check if this is a new sender or if there's a significant time gap
-                const showSenderInfo =
-                  index === 0 ||
-                  (typeof message.sender === "object" &&
+              {messages &&
+                messages.map((message: Message, index: number) => {
+                  const isCurrentUser =
+                    typeof message.sender === "object" &&
                     message.sender &&
-                    typeof messages[index - 1].sender === "object" &&
-                    messages[index - 1].sender &&
-                    (message.sender as any)._id !==
-                      (messages[index - 1].sender as any)._id);
+                    user &&
+                    ((message.sender as any)._id === user.id ||
+                      (message.sender as any).id === user.id);
+                  // Check if this is a new sender or if there's a significant time gap
+                  const showSenderInfo =
+                    index === 0 ||
+                    (typeof message.sender === "object" &&
+                      message.sender &&
+                      typeof messages[index - 1].sender === "object" &&
+                      messages[index - 1].sender &&
+                      (message.sender as any)._id !==
+                        (messages[index - 1].sender as any)._id);
 
-                return (
-                  <Box
-                    key={message._id}
-                    sx={{
-                      alignSelf: isCurrentUser ? "flex-end" : "flex-start",
-                      maxWidth: "70%",
-                      mb: 1,
-                    }}
-                  >
-                    {showSenderInfo && !isCurrentUser && (
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          ml: 1,
-                          fontWeight: "medium",
-                          color: "text.secondary",
-                        }}
-                      >
-                        {typeof message.sender === "object" && message.sender
-                          ? message.sender.username
-                          : "Unknown"}
-                      </Typography>
-                    )}
-                    <Paper
-                      elevation={0}
+                  return (
+                    <Box
+                      key={message._id}
                       sx={{
-                        p: 1.5,
-                        borderRadius: 2,
-                        bgcolor: isCurrentUser
-                          ? "#dcf8c6" // Light green for current user
-                          : "#ffffff", // White for others
-                        ml: isCurrentUser ? 0 : 1,
-                        mr: isCurrentUser ? 1 : 0,
-                        position: "relative",
-                        "&::after": isCurrentUser
-                          ? {
-                              content: '""',
-                              position: "absolute",
-                              width: 0,
-                              height: 0,
-                              top: 0,
-                              right: -10,
-                              border: "10px solid transparent",
-                              borderTopColor: "#dcf8c6",
-                              borderRight: 0,
-                            }
-                          : {
-                              content: '""',
-                              position: "absolute",
-                              width: 0,
-                              height: 0,
-                              top: 0,
-                              left: -10,
-                              border: "10px solid transparent",
-                              borderTopColor: "#ffffff",
-                              borderLeft: 0,
-                            },
+                        alignSelf: isCurrentUser ? "flex-end" : "flex-start",
+                        maxWidth: "70%",
+                        mb: 1,
                       }}
                     >
-                      <Typography variant="body2">{message.content}</Typography>
-                      <Typography
-                        variant="caption"
-                        align="right"
-                        display="block"
+                      {showSenderInfo && !isCurrentUser && (
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            ml: 1,
+                            fontWeight: "medium",
+                            color: "text.secondary",
+                          }}
+                        >
+                          {typeof message.sender === "object" && message.sender
+                            ? message.sender.username
+                            : "Unknown"}
+                        </Typography>
+                      )}
+                      <Paper
+                        elevation={0}
                         sx={{
-                          mt: 0.5,
-                          color: "text.secondary",
-                          fontSize: "0.7rem",
+                          p: 2,
+                          borderRadius: 3,
+                          background: isCurrentUser
+                            ? `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`
+                            : `linear-gradient(145deg, ${
+                                theme.palette.background.paper
+                              } 0%, ${alpha(
+                                theme.palette.primary.main,
+                                0.05
+                              )} 100%)`,
+                          color: isCurrentUser ? "white" : "text.primary",
+                          ml: isCurrentUser ? 0 : 1,
+                          mr: isCurrentUser ? 1 : 0,
+                          position: "relative",
+                          boxShadow: `0 4px 12px ${alpha(
+                            theme.palette.common.black,
+                            0.1
+                          )}`,
+                          border: isCurrentUser
+                            ? "none"
+                            : `1px solid ${alpha(
+                                theme.palette.primary.main,
+                                0.1
+                              )}`,
+                          transition: "all 0.2s ease",
+                          "&:hover": {
+                            transform: "translateY(-1px)",
+                            boxShadow: `0 6px 16px ${alpha(
+                              theme.palette.common.black,
+                              0.15
+                            )}`,
+                          },
+                          "&::after": isCurrentUser
+                            ? {
+                                content: '""',
+                                position: "absolute",
+                                width: 0,
+                                height: 0,
+                                top: 0,
+                                right: -10,
+                                border: "10px solid transparent",
+                                borderTopColor: theme.palette.primary.main,
+                                borderRight: 0,
+                              }
+                            : {
+                                content: '""',
+                                position: "absolute",
+                                width: 0,
+                                height: 0,
+                                top: 0,
+                                left: -10,
+                                border: "10px solid transparent",
+                                borderTopColor: theme.palette.background.paper,
+                                borderLeft: 0,
+                              },
                         }}
                       >
-                        {formatChatTime(message.createdAt)}
-                      </Typography>
-                    </Paper>
-                  </Box>
-                );
-              })}
+                        <Typography variant="body2">
+                          {renderTextContent(
+                            message.content,
+                            message.sender === "Ted"
+                          )}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          align="right"
+                          display="block"
+                          sx={{
+                            mt: 0.5,
+                            color: "text.secondary",
+                            fontSize: "0.7rem",
+                          }}
+                        >
+                          {formatChatTime(message.createdAt)}
+                        </Typography>
+                      </Paper>
+                    </Box>
+                  );
+                })}
             </>
           )}
         </Box>
@@ -1268,8 +1550,15 @@ const RoomView: React.FC = () => {
             sx={{
               display: "flex",
               alignItems: "center",
-              p: 1,
-              borderTop: "1px solid rgba(0,0,0,0.1)",
+              p: 2,
+              background: `linear-gradient(145deg, ${
+                theme.palette.background.paper
+              } 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
+              borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+              boxShadow: `0 -4px 20px ${alpha(
+                theme.palette.common.black,
+                0.05
+              )}`,
             }}
           >
             <IconButton
@@ -1279,11 +1568,32 @@ const RoomView: React.FC = () => {
             >
               <EmojiIcon />
             </IconButton>
+            {aiAvailable && (
+              <Tooltip title="Ted is here! Use @ai for AI assistance">
+                <IconButton
+                  size="small"
+                  sx={{
+                    mr: 1,
+                    color: theme.palette.secondary.main,
+                    "&:hover": {
+                      transform: "scale(1.1)",
+                    },
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  <AIIcon />
+                </IconButton>
+              </Tooltip>
+            )}
             <TextField
               fullWidth
-              placeholder="Type a message..."
+              placeholder={
+                aiAvailable
+                  ? "💬 Type a message... (Use @ai to chat with Ted)"
+                  : "💬 Type a message..."
+              }
               variant="outlined"
-              size="small"
+              size="medium"
               value={messageText}
               onChange={(e) => setMessageText(e.target.value)}
               disabled={sendingMessage}
@@ -1292,18 +1602,41 @@ const RoomView: React.FC = () => {
                   <IconButton
                     onClick={handleSendMessage}
                     disabled={!messageText.trim() || sendingMessage}
-                    size="small"
+                    size="medium"
                     color="primary"
                     type="submit"
+                    sx={{
+                      background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                      color: "white",
+                      mr: 0.5,
+                      "&:hover": {
+                        transform: "scale(1.05)",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+                      },
+                      transition: "all 0.2s ease",
+                    }}
                   >
                     {sendingMessage ? (
-                      <CircularProgress size={20} />
+                      <CircularProgress size={20} color="inherit" />
                     ) : (
                       <SendIcon />
                     )}
                   </IconButton>
                 ),
-                sx: { borderRadius: 5 },
+                sx: {
+                  borderRadius: 3,
+                  "& .MuiOutlinedInput-root": {
+                    "& fieldset": {
+                      borderColor: alpha(theme.palette.primary.main, 0.2),
+                    },
+                    "&:hover fieldset": {
+                      borderColor: alpha(theme.palette.primary.main, 0.4),
+                    },
+                    "&.Mui-focused fieldset": {
+                      borderColor: theme.palette.primary.main,
+                    },
+                  },
+                },
               }}
               sx={{ flex: 1 }}
             />

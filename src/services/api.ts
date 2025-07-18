@@ -33,6 +33,12 @@ export const authAPI = {
     api.post("/auth/login", credentials),
 
   getCurrentUser: () => api.get("/auth/me"),
+
+  updateProfile: (profileData: {
+    username: string;
+    email: string;
+    bio?: string;
+  }) => api.put("/auth/profile", profileData),
 };
 
 // Rooms API calls
@@ -65,4 +71,26 @@ export const roomsAPI = {
     api.post(`/rooms/${roomId}/reactions`, { emoji }),
 };
 
+// AI API calls
+export const aiAPI = {
+  getStatus: () => api.get("/ai/status"),
+
+  chatAssistant: (data: {
+    message: string;
+    roomId: string;
+    conversationHistory?: any[];
+  }) => api.post("/ai/chat", data),
+
+  moderateContent: (content: string) => api.post("/ai/moderate", { content }),
+
+  getRoomSuggestions: () => api.get("/ai/suggestions"),
+
+  generateRoomSummary: (roomId: string) => api.get(`/ai/summary/${roomId}`),
+
+  generateSmartNotification: (data: { event: string; context: any }) =>
+    api.post("/ai/notifications", data),
+};
+
+// Export api instance as both default and named export
+export { api };
 export default api;

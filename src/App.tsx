@@ -22,6 +22,7 @@ import { RoomProvider } from "./contexts/RoomContext";
 import { ChatProvider } from "./contexts/ChatContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
+import { AIProvider } from "./contexts/AIContext";
 
 // Components
 import MainLayout from "./components/layout/MainLayout";
@@ -34,80 +35,88 @@ function App() {
         <AuthProvider>
           <RoomProvider>
             <NotificationProvider>
-              <ChatProvider>
-                <Routes>
-                  {/* Public Routes */}
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/register" element={<Register />} />
+              <AIProvider>
+                <ChatProvider>
+                  <Routes>
+                    {/* Public Routes */}
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/register" element={<Register />} />
 
-                  {/* Protected Routes */}
-                  <Route
-                    path="/dashboard"
-                    element={
-                      <ProtectedRoute>
-                        <MainLayout>
-                          <Dashboard />
-                        </MainLayout>
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/explore"
-                    element={
-                      <ProtectedRoute>
-                        <MainLayout>
-                          <Explore />
-                        </MainLayout>
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/create-room"
-                    element={
-                      <ProtectedRoute>
-                        <MainLayout>
-                          <CreateRoom />
-                        </MainLayout>
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/profile"
-                    element={
-                      <ProtectedRoute>
-                        <MainLayout>
-                          <Profile />
-                        </MainLayout>
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/room/:roomId"
-                    element={
-                      <ProtectedRoute>
-                        <MainLayout>
-                          <RoomView />
-                        </MainLayout>
-                      </ProtectedRoute>
-                    }
-                  />
-                  {/* Add a route alias for backward compatibility */}
-                  <Route
-                    path="/rooms/:roomId"
-                    element={
-                      <ProtectedRoute>
-                        <MainLayout>
-                          <RoomView />
-                        </MainLayout>
-                      </ProtectedRoute>
-                    }
-                  />
+                    {/* Protected Routes */}
+                    <Route
+                      path="/dashboard"
+                      element={
+                        <ProtectedRoute>
+                          <MainLayout>
+                            <Dashboard />
+                          </MainLayout>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/explore"
+                      element={
+                        <ProtectedRoute>
+                          <MainLayout>
+                            <Explore />
+                          </MainLayout>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/create-room"
+                      element={
+                        <ProtectedRoute>
+                          <MainLayout>
+                            <CreateRoom />
+                          </MainLayout>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/profile"
+                      element={
+                        <ProtectedRoute>
+                          <MainLayout>
+                            <Profile />
+                          </MainLayout>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/room/:roomId"
+                      element={
+                        <ProtectedRoute>
+                          <MainLayout>
+                            <RoomView />
+                          </MainLayout>
+                        </ProtectedRoute>
+                      }
+                    />
+                    {/* Add a route alias for backward compatibility */}
+                    <Route
+                      path="/rooms/:roomId"
+                      element={
+                        <ProtectedRoute>
+                          <MainLayout>
+                            <RoomView />
+                          </MainLayout>
+                        </ProtectedRoute>
+                      }
+                    />
 
-                  {/* Default Redirect */}
-                  <Route path="/" element={<Navigate to="/login" replace />} />
-                  <Route path="*" element={<Navigate to="/login" replace />} />
-                </Routes>
-              </ChatProvider>
+                    {/* Default Redirect */}
+                    <Route
+                      path="/"
+                      element={<Navigate to="/login" replace />}
+                    />
+                    <Route
+                      path="*"
+                      element={<Navigate to="/login" replace />}
+                    />
+                  </Routes>
+                </ChatProvider>
+              </AIProvider>
             </NotificationProvider>
           </RoomProvider>
         </AuthProvider>

@@ -176,25 +176,34 @@ const Explore = () => {
   if (loading) return <Loading message="Loading rooms..." />;
 
   return (
-    <Box mb={4}>
+    <Box
+      sx={{
+        mb: 4,
+        minHeight: "100vh",
+        background: `linear-gradient(135deg, ${alpha(
+          theme.palette.primary.main,
+          0.05
+        )} 0%, ${alpha(theme.palette.secondary.main, 0.05)} 100%)`,
+        py: 2,
+      }}
+    >
       {/* Page Header */}
       <Typography
-        variant="h4"
+        variant="h3"
         component="h1"
         gutterBottom
-        fontWeight="bold"
-        color="primary"
         sx={{
-          backgroundImage:
-            theme.palette.mode === "dark"
-              ? "linear-gradient(45deg, #7986cb 30%, #5c6bc0 90%)"
-              : "linear-gradient(45deg, #3f51b5 30%, #303f9f 90%)",
+          fontWeight: 700,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
           backgroundClip: "text",
           WebkitBackgroundClip: "text",
-          color: "transparent",
+          WebkitTextFillColor: "transparent",
+          textShadow: "0 2px 4px rgba(0,0,0,0.1)",
+          textAlign: "center",
+          mb: 3,
         }}
       >
-        Explore Rooms
+        🔍 Explore Rooms
       </Typography>
       <Typography variant="body1" color="text.secondary" paragraph>
         Discover and join events and meetups. Only showing live and upcoming
@@ -204,44 +213,100 @@ const Explore = () => {
       <ErrorMessage message={error} />
 
       {/* Room Type Tabs */}
-      <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
+      <Box
+        sx={{
+          borderBottom: 1,
+          borderColor: alpha(theme.palette.primary.main, 0.2),
+          mb: 4,
+          mt: 4,
+          background: `linear-gradient(145deg, ${
+            theme.palette.background.paper
+          } 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
+          borderRadius: 3,
+          p: 1,
+          boxShadow: `0 4px 20px ${alpha(theme.palette.common.black, 0.08)}`,
+        }}
+      >
         <Tabs
           value={roomType}
           onChange={handleRoomTypeChange}
           variant="fullWidth"
           sx={{
             "& .MuiTab-root": {
-              fontWeight: 600,
-              transition: "all 0.2s",
+              fontWeight: 700,
+              transition: "all 0.3s ease",
+              borderRadius: 2,
+              mx: 0.5,
               "&.Mui-selected": {
                 color: theme.palette.primary.main,
+                background: `linear-gradient(135deg, ${alpha(
+                  theme.palette.primary.main,
+                  0.1
+                )} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`,
+                transform: "translateY(-1px)",
+                boxShadow: `0 4px 12px ${alpha(
+                  theme.palette.primary.main,
+                  0.2
+                )}`,
+              },
+              "&:hover": {
+                background: alpha(theme.palette.primary.main, 0.05),
+                transform: "translateY(-1px)",
               },
             },
             "& .MuiTabs-indicator": {
-              height: 3,
-              borderRadius: 1.5,
+              height: 4,
+              borderRadius: 2,
+              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+              boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.3)}`,
             },
           }}
         >
-          <Tab label="Public Rooms" />
-          <Tab label="Private Rooms" />
+          <Tab label="🌍 Public Rooms" />
+          <Tab label="🔒 Private Rooms" />
         </Tabs>
       </Box>
 
       {/* Search Bar */}
-      <Box mb={4} mt={2}>
+      <Box
+        mb={4}
+        mt={2}
+        sx={{
+          p: 3,
+          background: `linear-gradient(145deg, ${
+            theme.palette.background.paper
+          } 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
+          borderRadius: 3,
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+          boxShadow: `0 4px 20px ${alpha(theme.palette.common.black, 0.08)}`,
+        }}
+      >
         <StyledTextField
           fullWidth
           variant="outlined"
-          placeholder="Search by title, description, or tag"
+          placeholder="🔍 Search by title, description, or tag..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon />
+                <SearchIcon sx={{ color: theme.palette.primary.main }} />
               </InputAdornment>
             ),
+          }}
+          sx={{
+            "& .MuiOutlinedInput-root": {
+              borderRadius: 3,
+              "& fieldset": {
+                borderColor: alpha(theme.palette.primary.main, 0.2),
+              },
+              "&:hover fieldset": {
+                borderColor: alpha(theme.palette.primary.main, 0.4),
+              },
+              "&.Mui-focused fieldset": {
+                borderColor: theme.palette.primary.main,
+              },
+            },
           }}
         />
       </Box>
@@ -301,7 +366,20 @@ const Explore = () => {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <Box display="flex" justifyContent="center" mt={4}>
+        <Box
+          display="flex"
+          justifyContent="center"
+          mt={4}
+          sx={{
+            p: 2,
+            background: `linear-gradient(145deg, ${
+              theme.palette.background.paper
+            } 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
+            borderRadius: 3,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+            boxShadow: `0 4px 20px ${alpha(theme.palette.common.black, 0.08)}`,
+          }}
+        >
           <Pagination
             count={totalPages}
             page={page}
@@ -310,6 +388,23 @@ const Explore = () => {
             variant="outlined"
             shape="rounded"
             size="large"
+            sx={{
+              "& .MuiPaginationItem-root": {
+                fontWeight: 600,
+                borderRadius: 2,
+                "&.Mui-selected": {
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                  color: "white",
+                  boxShadow: `0 4px 12px ${alpha(
+                    theme.palette.primary.main,
+                    0.3
+                  )}`,
+                },
+                "&:hover": {
+                  background: alpha(theme.palette.primary.main, 0.1),
+                },
+              },
+            }}
           />
         </Box>
       )}
@@ -373,6 +468,18 @@ const RoomCard = ({
         width: "100%",
         position: "relative",
         overflow: "visible",
+        background: `linear-gradient(145deg, ${
+          theme.palette.background.paper
+        } 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
+        border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+        boxShadow: `0 4px 20px ${alpha(theme.palette.common.black, 0.08)}`,
+        backdropFilter: "blur(10px)",
+        transition: "all 0.3s ease",
+        "&:hover": {
+          transform: "translateY(-4px)",
+          boxShadow: `0 12px 40px ${alpha(theme.palette.common.black, 0.15)}`,
+          borderColor: alpha(theme.palette.primary.main, 0.2),
+        },
         "&::before":
           room.status === RoomStatus.LIVE
             ? {
@@ -411,15 +518,12 @@ const RoomCard = ({
             borderTopLeftRadius: "inherit",
             borderTopRightRadius: "inherit",
             p: 2,
-            borderBottom: `1px solid ${
-              theme.palette.mode === "dark"
-                ? "rgba(255,255,255,0.1)"
-                : "rgba(0,0,0,0.05)"
-            }`,
-            bgcolor:
-              theme.palette.mode === "dark"
-                ? "rgba(15, 15, 15, 0.6)"
-                : "rgba(245, 245, 245, 0.5)",
+            borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+            background: `linear-gradient(145deg, ${alpha(
+              theme.palette.primary.main,
+              0.05
+            )} 0%, ${alpha(theme.palette.secondary.main, 0.05)} 100%)`,
+            backdropFilter: "blur(10px)",
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", maxWidth: "70%" }}>
@@ -445,10 +549,15 @@ const RoomCard = ({
             label={room.status.toUpperCase()}
             size="small"
             sx={{
-              backgroundColor: statusColor.bg,
+              background: `linear-gradient(135deg, ${
+                statusColor.bg
+              } 0%, ${alpha(statusColor.bg, 0.8)} 100%)`,
               color: statusColor.text,
-              fontWeight: 600,
+              fontWeight: 700,
               fontSize: "0.7rem",
+              borderRadius: 2,
+              boxShadow: `0 2px 8px ${alpha(statusColor.bg, 0.3)}`,
+              border: `1px solid ${alpha(statusColor.bg, 0.2)}`,
             }}
           />
         </Box>
@@ -512,10 +621,29 @@ const RoomCard = ({
                   label={tag}
                   size="small"
                   sx={{
-                    bgcolor: alpha(theme.palette.primary.main, 0.1),
+                    background: `linear-gradient(135deg, ${alpha(
+                      theme.palette.primary.main,
+                      0.1
+                    )} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`,
                     color: theme.palette.primary.main,
                     fontSize: "0.7rem",
                     height: 24,
+                    fontWeight: 600,
+                    border: `1px solid ${alpha(
+                      theme.palette.primary.main,
+                      0.2
+                    )}`,
+                    borderRadius: 2,
+                    "&:hover": {
+                      background: `linear-gradient(135deg, ${alpha(
+                        theme.palette.primary.main,
+                        0.15
+                      )} 0%, ${alpha(
+                        theme.palette.secondary.main,
+                        0.15
+                      )} 100%)`,
+                      transform: "translateY(-1px)",
+                    },
                   }}
                 />
               ))}
@@ -527,7 +655,7 @@ const RoomCard = ({
       {/* Card actions */}
       <CardActions sx={{ p: 2, pt: 0 }}>
         <StyledButton
-          size="small"
+          size="large"
           color="primary"
           variant={
             room.status === RoomStatus.LIVE || isUserInRoom
@@ -538,9 +666,87 @@ const RoomCard = ({
           fullWidth
           sx={{
             mt: 1,
-            opacity: room.status === RoomStatus.CLOSED ? 0.8 : 1,
+            py: 1.5,
+            borderRadius: 3,
+            fontWeight: 600,
+            fontSize: "0.95rem",
+            textTransform: "none",
+            transition: "all 0.3s ease",
+            position: "relative",
+            overflow: "hidden",
+            "&::before": {
+              content: '""',
+              position: "absolute",
+              top: 0,
+              left: "-100%",
+              width: "100%",
+              height: "100%",
+              background: `linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)`,
+              transition: "left 0.5s ease",
+            },
+            "&:hover::before": {
+              left: "100%",
+            },
+            ...(room.status === RoomStatus.LIVE || isUserInRoom
+              ? {
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                  boxShadow: `0 6px 20px ${alpha(
+                    theme.palette.primary.main,
+                    0.3
+                  )}`,
+                  "&:hover": {
+                    transform: "translateY(-2px)",
+                    boxShadow: `0 8px 25px ${alpha(
+                      theme.palette.primary.main,
+                      0.4
+                    )}`,
+                    background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`,
+                  },
+                  "&:active": {
+                    transform: "translateY(0px)",
+                    boxShadow: `0 4px 15px ${alpha(
+                      theme.palette.primary.main,
+                      0.3
+                    )}`,
+                  },
+                }
+              : {
+                  border: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+                  color: theme.palette.primary.main,
+                  "&:hover": {
+                    background: `linear-gradient(135deg, ${alpha(
+                      theme.palette.primary.main,
+                      0.1
+                    )} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`,
+                    borderColor: theme.palette.primary.main,
+                    transform: "translateY(-1px)",
+                    boxShadow: `0 4px 15px ${alpha(
+                      theme.palette.primary.main,
+                      0.2
+                    )}`,
+                  },
+                }),
+            ...(room.status === RoomStatus.CLOSED && {
+              opacity: 0.7,
+              background: `linear-gradient(135deg, ${alpha(
+                theme.palette.grey[500],
+                0.1
+              )} 0%, ${alpha(theme.palette.grey[500], 0.05)} 100%)`,
+              border: `1px solid ${alpha(theme.palette.grey[500], 0.2)}`,
+              color: theme.palette.text.secondary,
+              "&:hover": {
+                background: `linear-gradient(135deg, ${alpha(
+                  theme.palette.grey[500],
+                  0.15
+                )} 0%, ${alpha(theme.palette.grey[500], 0.1)} 100%)`,
+                transform: "translateY(-1px)",
+              },
+            }),
           }}
         >
+          {room.status === RoomStatus.LIVE && "�� "}
+          {room.status === RoomStatus.SCHEDULED && "⏰ "}
+          {room.status === RoomStatus.CLOSED && "📋 "}
           {getButtonText()}
         </StyledButton>
       </CardActions>

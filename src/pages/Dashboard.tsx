@@ -103,28 +103,51 @@ const Dashboard = () => {
           flexDirection: "column",
           position: "relative",
           overflow: "visible",
+          background: `linear-gradient(145deg, ${
+            theme.palette.background.paper
+          } 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+          boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.1)}`,
+          transition: "all 0.3s ease-in-out",
+          "&:hover": {
+            transform: "translateY(-4px)",
+            boxShadow: `0 12px 40px ${alpha(theme.palette.common.black, 0.15)}`,
+          },
           "&::before":
             room.status === RoomStatus.LIVE
               ? {
                   content: '""',
                   position: "absolute",
-                  top: -4,
-                  right: -4,
-                  width: 12,
-                  height: 12,
-                  backgroundColor: "success.main",
+                  top: -6,
+                  right: -6,
+                  width: 16,
+                  height: 16,
+                  background: `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.light} 100%)`,
                   borderRadius: "50%",
-                  boxShadow: "0 0 0 3px rgba(76, 175, 80, 0.3)",
+                  boxShadow: `0 0 0 4px ${alpha(
+                    theme.palette.success.main,
+                    0.3
+                  )}`,
                   animation: "pulse 1.5s infinite",
+                  zIndex: 1,
                   "@keyframes pulse": {
                     "0%": {
-                      boxShadow: "0 0 0 0 rgba(76, 175, 80, 0.6)",
+                      boxShadow: `0 0 0 0 ${alpha(
+                        theme.palette.success.main,
+                        0.6
+                      )}`,
                     },
                     "70%": {
-                      boxShadow: "0 0 0 6px rgba(76, 175, 80, 0)",
+                      boxShadow: `0 0 0 8px ${alpha(
+                        theme.palette.success.main,
+                        0
+                      )}`,
                     },
                     "100%": {
-                      boxShadow: "0 0 0 0 rgba(76, 175, 80, 0)",
+                      boxShadow: `0 0 0 0 ${alpha(
+                        theme.palette.success.main,
+                        0
+                      )}`,
                     },
                   },
                 }
@@ -140,16 +163,16 @@ const Dashboard = () => {
               alignItems: "center",
               borderTopLeftRadius: "inherit",
               borderTopRightRadius: "inherit",
-              p: 2,
-              borderBottom: `1px solid ${
-                theme.palette.mode === "dark"
-                  ? "rgba(255,255,255,0.1)"
-                  : "rgba(0,0,0,0.05)"
-              }`,
-              bgcolor:
-                theme.palette.mode === "dark"
-                  ? "rgba(15, 15, 15, 0.6)"
-                  : "rgba(245, 245, 245, 0.5)",
+              p: 2.5,
+              borderBottom: `1px solid ${alpha(
+                theme.palette.primary.main,
+                0.1
+              )}`,
+              background: `linear-gradient(135deg, ${alpha(
+                theme.palette.primary.main,
+                0.1
+              )} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`,
+              backdropFilter: "blur(10px)",
             }}
           >
             <Typography
@@ -163,12 +186,23 @@ const Dashboard = () => {
             </Typography>
             <Chip
               label={room.status.toUpperCase()}
-              size="small"
+              size="medium"
               sx={{
-                backgroundColor: statusColor.bg,
+                background: `linear-gradient(135deg, ${
+                  statusColor.bg
+                } 0%, ${alpha(statusColor.bg, 0.8)} 100%)`,
                 color: statusColor.text,
-                fontWeight: 600,
-                fontSize: "0.7rem",
+                fontWeight: 700,
+                fontSize: "0.75rem",
+                px: 1.5,
+                py: 0.5,
+                boxShadow: `0 4px 12px ${alpha(
+                  theme.palette.common.black,
+                  0.15
+                )}`,
+                "& .MuiChip-label": {
+                  px: 1,
+                },
               }}
             />
           </Box>
@@ -240,9 +274,9 @@ const Dashboard = () => {
         </CardContent>
 
         {/* Card actions */}
-        <CardActions sx={{ p: 2, pt: 0 }}>
+        <CardActions sx={{ p: 2.5, pt: 0 }}>
           <StyledButton
-            size="small"
+            size="medium"
             color="primary"
             variant={room.status === RoomStatus.LIVE ? "contained" : "outlined"}
             onClick={() => handleJoinRoom(room._id)}
@@ -251,9 +285,31 @@ const Dashboard = () => {
             sx={{
               mt: 1,
               opacity: room.status === RoomStatus.CLOSED ? 0.6 : 1,
+              borderRadius: 3,
+              py: 1.5,
+              fontWeight: 600,
+              background:
+                room.status === RoomStatus.LIVE
+                  ? `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`
+                  : undefined,
+              boxShadow:
+                room.status === RoomStatus.LIVE
+                  ? "0 6px 20px rgba(0,0,0,0.15)"
+                  : undefined,
+              transition: "all 0.3s ease",
+              "&:hover": {
+                transform:
+                  room.status === RoomStatus.LIVE
+                    ? "translateY(-2px)"
+                    : undefined,
+                boxShadow:
+                  room.status === RoomStatus.LIVE
+                    ? "0 8px 25px rgba(0,0,0,0.2)"
+                    : undefined,
+              },
             }}
           >
-            {room.status === RoomStatus.LIVE ? "Join Now" : "View"}
+            {room.status === RoomStatus.LIVE ? "🚀 Join Now" : "👁️ View"}
           </StyledButton>
         </CardActions>
       </StyledCard>
@@ -306,25 +362,34 @@ const Dashboard = () => {
   );
 
   return (
-    <Box mb={4}>
+    <Box
+      sx={{
+        mb: 4,
+        minHeight: "100vh",
+        background: `linear-gradient(135deg, ${alpha(
+          theme.palette.primary.main,
+          0.05
+        )} 0%, ${alpha(theme.palette.secondary.main, 0.05)} 100%)`,
+        py: 2,
+      }}
+    >
       {/* Dashboard Header */}
       <Typography
-        variant="h4"
+        variant="h3"
         component="h1"
         gutterBottom
-        fontWeight="bold"
-        color="primary"
         sx={{
-          backgroundImage:
-            theme.palette.mode === "dark"
-              ? "linear-gradient(45deg, #7986cb 30%, #5c6bc0 90%)"
-              : "linear-gradient(45deg, #3f51b5 30%, #303f9f 90%)",
+          fontWeight: 700,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
           backgroundClip: "text",
           WebkitBackgroundClip: "text",
-          color: "transparent",
+          WebkitTextFillColor: "transparent",
+          textShadow: "0 2px 4px rgba(0,0,0,0.1)",
+          textAlign: "center",
+          mb: 3,
         }}
       >
-        Your Dashboard
+        🚀 Your Dashboard
       </Typography>
       <Typography variant="body1" color="text.secondary" paragraph>
         Manage your upcoming, live, and past events.
@@ -333,7 +398,20 @@ const Dashboard = () => {
       <ErrorMessage message={error} />
 
       {/* Room Filter Tabs */}
-      <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3, mt: 3 }}>
+      <Box
+        sx={{
+          borderBottom: 1,
+          borderColor: alpha(theme.palette.primary.main, 0.2),
+          mb: 4,
+          mt: 4,
+          background: `linear-gradient(145deg, ${
+            theme.palette.background.paper
+          } 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
+          borderRadius: 3,
+          p: 1,
+          boxShadow: `0 4px 20px ${alpha(theme.palette.common.black, 0.08)}`,
+        }}
+      >
         <Tabs
           value={tabValue}
           onChange={handleTabChange}
@@ -342,15 +420,32 @@ const Dashboard = () => {
           allowScrollButtonsMobile
           sx={{
             "& .MuiTab-root": {
-              fontWeight: 600,
-              transition: "all 0.2s",
+              fontWeight: 700,
+              transition: "all 0.3s ease",
+              borderRadius: 2,
+              mx: 0.5,
               "&.Mui-selected": {
                 color: theme.palette.primary.main,
+                background: `linear-gradient(135deg, ${alpha(
+                  theme.palette.primary.main,
+                  0.1
+                )} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`,
+                transform: "translateY(-1px)",
+                boxShadow: `0 4px 12px ${alpha(
+                  theme.palette.primary.main,
+                  0.2
+                )}`,
+              },
+              "&:hover": {
+                background: alpha(theme.palette.primary.main, 0.05),
+                transform: "translateY(-1px)",
               },
             },
             "& .MuiTabs-indicator": {
-              height: 3,
-              borderRadius: 1.5,
+              height: 4,
+              borderRadius: 2,
+              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+              boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.3)}`,
             },
           }}
         >
@@ -406,7 +501,23 @@ const Dashboard = () => {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <Box display="flex" justifyContent="center" mt={4}>
+            <Box
+              display="flex"
+              justifyContent="center"
+              mt={4}
+              sx={{
+                p: 2,
+                background: `linear-gradient(145deg, ${
+                  theme.palette.background.paper
+                } 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
+                borderRadius: 3,
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+                boxShadow: `0 4px 20px ${alpha(
+                  theme.palette.common.black,
+                  0.08
+                )}`,
+              }}
+            >
               <Pagination
                 count={totalPages}
                 page={page}
@@ -415,6 +526,23 @@ const Dashboard = () => {
                 variant="outlined"
                 shape="rounded"
                 size="large"
+                sx={{
+                  "& .MuiPaginationItem-root": {
+                    fontWeight: 600,
+                    borderRadius: 2,
+                    "&.Mui-selected": {
+                      background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                      color: "white",
+                      boxShadow: `0 4px 12px ${alpha(
+                        theme.palette.primary.main,
+                        0.3
+                      )}`,
+                    },
+                    "&:hover": {
+                      background: alpha(theme.palette.primary.main, 0.1),
+                    },
+                  },
+                }}
               />
             </Box>
           )}

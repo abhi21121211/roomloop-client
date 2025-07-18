@@ -165,6 +165,13 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({
             ? incomingMessage.room
             : incomingMessage.room._id));
 
+      console.log(
+        "Extracted roomId:",
+        roomId,
+        "Current room:",
+        currentRoom._id
+      );
+
       // Explicitly check if the message belongs to the current active room
       if (roomId === currentRoom._id) {
         console.log("Adding message to current room:", incomingMessage);
@@ -174,12 +181,22 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({
           (msg) => msg._id === incomingMessage._id
         );
 
-        if (!messageExists) {
+        // Don't add if it's from current user (we handle it optimistically)
+        const isFromCurrentUser = data.senderId === user?.id;
+
+        if (!messageExists && !isFromCurrentUser) {
+          console.log("Message is new and from other user, adding to state");
           setMessageState((prevState) => ({
             ...prevState,
             messages: [...prevState.messages, incomingMessage],
           }));
+        } else {
+          console.log(
+            "Message already exists or is from current user, skipping"
+          );
         }
+      } else {
+        console.log("Message is for different room, ignoring");
       }
     };
 
@@ -197,11 +214,18 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({
     // Fetch messages for this room
     fetchMessages(currentRoom._id);
 
+    // Set up polling as a fallback for real-time updates
+    const pollInterval = setInterval(() => {
+      console.log("Polling for new messages...");
+      fetchMessages(currentRoom._id);
+    }, 5000); // Poll every 5 seconds
+
     // Clean up function
     return () => {
       console.log(`Cleaning up listeners for room ${currentRoom._id}`);
       socket.off("receive_reaction", handleReceiveReaction);
       socket.off("receive_message", handleReceiveRoomMessage);
+      clearInterval(pollInterval);
       // We don't leave the room here anymore - that's handled by RoomContext
     };
   }, [currentRoom, fetchMessages]);
@@ -219,27 +243,42 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({
       // Ensure we're connected to the room via socket
       socketService.joinRoom(roomId);
 
-      // Send through API
-      const response = await roomsAPI.sendMessage(roomId, content);
-      const newMessage = response.data.message;
+      // Create optimistic message (without _id)
+      const optimisticMessage = {
+        content,
+        sender: user?.id,
+        room: roomId,
+        createdAt: new Date(),
+        _id: `temp_${Date.now()}`, // Temporary ID for optimistic message
+      };
 
-      // Also emit via socket for real-time updates
-      socketService.sendMessage({
-        roomId,
-        message: newMessage,
-      });
-
-      // Add to local state
+      // Add optimistic message to state immediately
       setMessageState((prevState) => ({
         ...prevState,
-        messages: [...prevState.messages, newMessage],
+        messages: [...prevState.messages, optimisticMessage as any],
         loading: false,
         error: null,
       }));
+
+      // Send through API (server will handle socket emission)
+      const response = await roomsAPI.sendMessage(roomId, content);
+      const realMessage = response.data.message;
+
+      // Replace optimistic message with real message
+      setMessageState((prevState) => ({
+        ...prevState,
+        messages: prevState.messages.map((msg) =>
+          msg._id === optimisticMessage._id ? realMessage : msg
+        ),
+      }));
     } catch (error: any) {
       console.error("Send message error:", error);
-      setMessageState((prev) => ({
-        ...prev,
+      // Remove optimistic message on error
+      setMessageState((prevState) => ({
+        ...prevState,
+        messages: prevState.messages.filter(
+          (msg) => msg._id !== `temp_${Date.now()}`
+        ),
         loading: false,
         error: error.response?.data?.message || "Failed to send message",
       }));

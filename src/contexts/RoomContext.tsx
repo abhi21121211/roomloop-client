@@ -22,6 +22,7 @@ interface RoomContextType extends RoomState {
   inviteUsers: (roomId: string, usernames: string[]) => Promise<void>;
   clearError: () => void;
   setCurrentRoom: (room: Room | null) => void;
+  userRooms: Room[];
 }
 
 const initialState: RoomState = {
@@ -32,6 +33,7 @@ const initialState: RoomState = {
     invites: [],
   },
   publicRooms: [],
+  userRooms: [],
   currentRoom: null,
   loading: false,
   error: null,
@@ -52,9 +54,18 @@ export const RoomProvider: React.FC<{ children: ReactNode }> = ({
 
       const response = await roomsAPI.getUserRooms();
 
+      // Combine all user rooms into a single array
+      const allUserRooms = [
+        ...response.data.rooms.upcoming,
+        ...response.data.rooms.live,
+        ...response.data.rooms.past,
+        ...response.data.rooms.invites,
+      ];
+
       setState((prev) => ({
         ...prev,
         rooms: response.data.rooms,
+        userRooms: allUserRooms,
         loading: false,
         error: null,
       }));

@@ -7,6 +7,7 @@ import {
   Link as MuiLink,
   Stack,
   useTheme as useMuiTheme,
+  alpha,
 } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
@@ -67,109 +68,151 @@ const Login: React.FC = () => {
   };
 
   return (
-    <Container component="main" maxWidth="sm">
-      <Box
-        sx={{
-          mt: 8,
-          mb: 8,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-        }}
-      >
-        <StyledCard sx={{ width: "100%" }}>
-          <Stack spacing={3} alignItems="center" sx={{ width: "100%" }}>
-            <Typography
-              component="h1"
-              variant="h4"
-              fontWeight="bold"
-              color="primary"
-              sx={{
-                backgroundImage:
-                  theme.palette.mode === "dark"
-                    ? "linear-gradient(45deg, #7986cb 30%, #5c6bc0 90%)"
-                    : "linear-gradient(45deg, #3f51b5 30%, #303f9f 90%)",
-                backgroundClip: "text",
-                WebkitBackgroundClip: "text",
-                color: "transparent",
-                mb: 1,
-              }}
-            >
-              Sign in to RoomLoop
-            </Typography>
-
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Enter your credentials to access your account
-            </Typography>
-
-            <ErrorMessage message={error} />
-
-            <Box
-              component="form"
-              onSubmit={handleSubmit}
-              sx={{ width: "100%" }}
-            >
-              <StyledTextField
-                margin="normal"
-                required
-                fullWidth
-                id="login"
-                label="Email or Username"
-                name="login"
-                autoComplete="email"
-                autoFocus
-                value={formData.login}
-                onChange={handleChange}
-                error={!!formErrors.login}
-                helperText={formErrors.login}
-              />
-              <StyledTextField
-                margin="normal"
-                required
-                fullWidth
-                name="password"
-                label="Password"
-                type="password"
-                id="password"
-                autoComplete="current-password"
-                value={formData.password}
-                onChange={handleChange}
-                error={!!formErrors.password}
-                helperText={formErrors.password}
-              />
-              <StyledButton
-                type="submit"
-                fullWidth
-                variant="contained"
-                color="primary"
-                sx={{ mt: 3, mb: 2 }}
+    <Box
+      sx={{
+        minHeight: "100vh",
+        background: `linear-gradient(135deg, ${alpha(
+          theme.palette.primary.main,
+          0.05
+        )} 0%, ${alpha(theme.palette.secondary.main, 0.05)} 100%)`,
+        backgroundImage: `radial-gradient(circle at 20% 80%, ${alpha(
+          theme.palette.primary.main,
+          0.1
+        )} 0%, transparent 50%),
+                          radial-gradient(circle at 80% 20%, ${alpha(
+                            theme.palette.secondary.main,
+                            0.1
+                          )} 0%, transparent 50%)`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        py: 4,
+      }}
+    >
+      <Container component="main" maxWidth="sm">
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
+          <StyledCard
+            sx={{
+              width: "100%",
+              background: `linear-gradient(145deg, ${
+                theme.palette.background.paper
+              } 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+              boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.1)}`,
+              backdropFilter: "blur(10px)",
+              p: 4,
+            }}
+          >
+            <Stack spacing={4} alignItems="center" sx={{ width: "100%" }}>
+              <Typography
+                component="h1"
+                variant="h3"
+                sx={{
+                  fontWeight: 700,
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                  backgroundClip: "text",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  textShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                  textAlign: "center",
+                  mb: 2,
+                }}
               >
-                Sign In
-              </StyledButton>
-              <Grid container justifyContent="center">
-                <Grid item>
-                  <MuiLink
-                    component={Link}
-                    to="/register"
-                    variant="body2"
-                    sx={{
-                      textDecoration: "none",
-                      fontWeight: "medium",
-                      transition: "color 0.2s",
-                      "&:hover": {
-                        color: "primary.main",
-                      },
-                    }}
-                  >
-                    {"Don't have an account? Sign Up"}
-                  </MuiLink>
+                🚀 Welcome Back!
+              </Typography>
+
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Enter your credentials to access your account
+              </Typography>
+
+              <ErrorMessage message={error} />
+
+              <Box
+                component="form"
+                onSubmit={handleSubmit}
+                sx={{ width: "100%" }}
+              >
+                <StyledTextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  id="login"
+                  label="Email or Username"
+                  name="login"
+                  autoComplete="email"
+                  autoFocus
+                  value={formData.login}
+                  onChange={handleChange}
+                  error={!!formErrors.login}
+                  helperText={formErrors.login}
+                />
+                <StyledTextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  name="password"
+                  label="Password"
+                  type="password"
+                  id="password"
+                  autoComplete="current-password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  error={!!formErrors.password}
+                  helperText={formErrors.password}
+                />
+                <StyledButton
+                  type="submit"
+                  fullWidth
+                  variant="contained"
+                  color="primary"
+                  sx={{
+                    mt: 4,
+                    mb: 3,
+                    py: 1.5,
+                    borderRadius: 3,
+                    fontWeight: 600,
+                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                    boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
+                    transition: "all 0.3s ease",
+                    "&:hover": {
+                      transform: "translateY(-2px)",
+                      boxShadow: "0 8px 25px rgba(0,0,0,0.2)",
+                    },
+                  }}
+                >
+                  🔐 Sign In
+                </StyledButton>
+                <Grid container justifyContent="center">
+                  <Grid item>
+                    <MuiLink
+                      component={Link}
+                      to="/register"
+                      variant="body2"
+                      sx={{
+                        textDecoration: "none",
+                        fontWeight: "medium",
+                        transition: "color 0.2s",
+                        "&:hover": {
+                          color: "primary.main",
+                        },
+                      }}
+                    >
+                      {"Don't have an account? Sign Up"}
+                    </MuiLink>
+                  </Grid>
                 </Grid>
-              </Grid>
-            </Box>
-          </Stack>
-        </StyledCard>
-      </Box>
-    </Container>
+              </Box>
+            </Stack>
+          </StyledCard>
+        </Box>
+      </Container>
+    </Box>
   );
 };
 
