@@ -2,6 +2,10 @@
 
 A modern React-based platform for virtual events, meetings, and social gatherings with AI-powered assistance.
 
+## 🚀 Live Demo
+
+**🌐 Live Application**: [RoomLoop App](https://roomloop-client.vercel.app/)
+
 ## 🚀 Features
 
 ### Core Features
@@ -48,19 +52,23 @@ A modern React-based platform for virtual events, meetings, and social gathering
 
 ### Dashboard
 
-![Dashboard Screenshot](/screenshots/Screenshot%202025-05-04%20102141.png)
+![Dashboard Screenshot](/Asset/Dashboard.png)
 
 ### Explore Rooms
 
-![Explore Screenshot](/screenshots/Screenshot%202025-05-04%20102201.png)
+![Explore Screenshot](/Asset/ExploreRoom.png)
 
-### Room View with AI
+### Create Room
 
-![Room View Screenshot](/screenshots/Screenshot%202025-05-04%20103258.png)
+![Create Room Screenshot](/Asset/CreateRoom.png)
 
-### Live Chat with Reactions
+### Room Chat with AI
 
-![Live Chat Screenshot](/screenshots/Screenshot%202025-05-04%20103101.png)
+![Room Chat Screenshot](/Asset/RoomChat.png)
+
+### User Profile
+
+![User Profile Screenshot](/Asset/UserProfile.png)
 
 </details>
 
@@ -329,6 +337,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 🔗 Related Links
 
+- **Live Demo**: [RoomLoop App](https://roomloop-client.vercel.app/)
 - **Backend Repository**: [roomloop-server](https://github.com/abhi21121211/roomloop-server)
-- **Live Demo**: [RoomLoop App](https://roomloop.vercel.app)
 - **Documentation**: [AI Features Guide](FREE_AI_SETUP.md)
